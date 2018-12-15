@@ -16,39 +16,22 @@ type Server struct {
 	host string
 }
 
-func getSystemIPString() (string, error) {
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return "", err
-	}
-	for _, address := range addrs {
-		// check the address type and if it is not a loopback the display it
-
-		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
-				return ipnet.IP.String(), nil
-			}
-		}
-	}
-	return "", nil
-}
-
 func (server Server) runOnDeviceIP(port int) error {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		return err
 	}
+	ip := ""
 	for _, address := range addrs {
 		// check the address type and if it is not a loopback the display it
-
 		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
 			if ipnet.IP.To4() != nil {
-				ip := ipnet.IP.String()
+				ip = ipnet.IP.String()
 				fmt.Println("Found IP %s", ip)
-				server.run(port, ip)
 			}
 		}
 	}
+	server.run(port, ip)
 	return errors.New("Could not bind to any IP address.")
 }
 
