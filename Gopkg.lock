@@ -47,13 +47,13 @@
   version = "v1.2.1"
 
 [[projects]]
-  digest = "1:33f54bc1659da4c667ce73ca2f86f4268ac53645219d96eeb40d45086746ac02"
+  digest = "1:687e61738daf2ddc506bffc79fc713f4123b25d304b29ad6c35ab8a5aff47082"
   name = "github.com/go-vgo/robotgo"
   packages = [
     ".",
     "clipboard",
   ]
-  pruneopts = "UT"
+  pruneopts = "T"
   revision = "21426f901e0f05445b425d36159681630edc68f3"
   version = "0.60.0"
 
