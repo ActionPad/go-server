@@ -2,7 +2,10 @@ package main
 
 import (
 	"github.com/go-vgo/robotgo"
+	"sync"
 )
+
+var mutex = &sync.Mutex{}
 
 func keytype() {
 	// robotgo.TypeString("Hello World")
@@ -33,9 +36,11 @@ func mouse() {
 }
 
 func keyPress(key string, modifiers ...string) {
+	mutex.Lock()
 	robotgo.KeyToggle(key,"down")
 	robotgo.MilliSleep(250)
 	robotgo.KeyToggle(key,"up")
+	mutex.Unlock()
 }
 
 func test1() {
