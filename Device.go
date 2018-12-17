@@ -1,6 +1,7 @@
 package main
 
 type Device struct {
-	name string
-	uuid string
+	Name string `json:"name"`
+	UUID string `json:"uuid"`
+	SessionId string `json:"sessionId,omitempty"`
 }

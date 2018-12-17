@@ -28,6 +28,18 @@ func keytype() {
 }
 
 func mouse() {
-	robotgo.Sleep(2)
+	robotgo.Sleep(5)
 	robotgo.MoveMouseSmooth(100, 200, 1.0, 100.0)
+}
+
+func test1() {
+	robotgo.Sleep(10)
+	robotgo.MoveMouseSmooth(100, 200, 1.0, 100.0)
+	robotgo.KeyTap("down")
+	robotgo.KeyTap("enter")
+	robotgo.KeyTap("down")
+	robotgo.KeyTap("down")
+	robotgo.KeyTap("down")
+	robotgo.KeyTap("down")
+	robotgo.KeyTap("enter")
 }

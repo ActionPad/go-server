@@ -7,13 +7,16 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-
+	"time"
+	"encoding/json"
 	"github.com/gorilla/mux"
 )
 
 type Server struct {
 	port int
 	host string
+	devices []*Device
+	httpServer *http.Server
 }
 
 func (server Server) runOnDeviceIP(port int) error {
@@ -27,7 +30,7 @@ func (server Server) runOnDeviceIP(port int) error {
 		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
 			if ipnet.IP.To4() != nil {
 				ip = ipnet.IP.String()
-				fmt.Println("Found IP %s", ip)
+				fmt.Printf("Found IP %s\n", ip)
 			}
 		}
 	}
@@ -39,15 +42,50 @@ func pingHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello World")
 }
 
+func testHandler(w http.ResponseWriter, r *http.Request) {
+	test1()
+}
+
+func authHandler(w http.ResponseWriter, r *http.Request) {
+	authCode := r.Header.Get("Authorization")
+	if authCode == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	var device Device
+	err := json.NewDecoder(r.Body).Decode(&device)
+	if err != nil {
+		http.Error(w, "Could not decode provided JSON.", http.StatusBadRequest)
+	}
+	device.SessionId = "secret_code"
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(device)
+}
+
+
+
 func (server Server) run(port int, host string) error {
 	if port < 0 || port > 65535 {
 		return errors.New("Provided port is out of range. Server offline.")
 	}
 	fmt.Printf("Server running on: %s:%d\n", host, port)
 	router := mux.NewRouter()
-	router.HandleFunc("/", pingHandler)
-	err := http.ListenAndServe(
-		strings.Join([]string{host, ":", strconv.Itoa(port)}, ""), router)
+
+	addr := strings.Join([]string{host, ":", strconv.Itoa(port)}, "")
+
+	server.httpServer = &http.Server{
+		Addr: addr,
+		Handler: router,
+		WriteTimeout: 15 * time.Second,
+        ReadTimeout:  15 * time.Second,
+	}
+
+	// routes
+	router.HandleFunc("/", pingHandler).Methods("GET")
+	router.HandleFunc("/test", testHandler).Methods("GET")
+	router.HandleFunc("/authenticate",authHandler).Methods("POST")
+
+	err := server.httpServer.ListenAndServe()
 	if err != nil {
 		return err
 	}
