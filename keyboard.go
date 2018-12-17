@@ -32,14 +32,20 @@ func mouse() {
 	robotgo.MoveMouseSmooth(100, 200, 1.0, 100.0)
 }
 
+func keyPress(key string, modifiers ...string) {
+	robotgo.KeyToggle(key)
+	robotgo.MilliSleep(250)
+	robotgo.KeyToggle(key)
+}
+
 func test1() {
 	robotgo.Sleep(10)
 	robotgo.MoveMouseSmooth(100, 200, 1.0, 100.0)
-	robotgo.KeyTap("down")
-	robotgo.KeyTap("enter")
-	robotgo.KeyTap("down")
-	robotgo.KeyTap("down")
-	robotgo.KeyTap("down")
-	robotgo.KeyTap("down")
-	robotgo.KeyTap("enter")
+	keyPress("down")
+	keyPress("enter")
+	keyPress("down")
+	keyPress("down")
+	keyPress("down")
+	keyPress("down")
+	keyPress("enter")
 }
