@@ -44,6 +44,12 @@ func keyPress(key string, modifiers ...string) {
 	mutex.Unlock()
 }
 
+func typeString(str string, cpm float64) {
+	mutex.Lock()
+	robotgo.TypeStr(str, cpm)
+	mutex.Unlock()
+}
+
 func test1() {
 	robotgo.Sleep(5)
 	keyPress("down")
