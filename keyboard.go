@@ -38,8 +38,9 @@ func mouse() {
 func keyPress(key string, modifiers ...string) {
 	mutex.Lock()
 	robotgo.KeyToggle(key,"down")
-	robotgo.MilliSleep(250)
+	robotgo.MilliSleep(125)
 	robotgo.KeyToggle(key,"up")
+	robotgo.MilliSleep(125)
 	mutex.Unlock()
 }
 
