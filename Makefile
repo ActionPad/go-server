@@ -24,7 +24,7 @@ deps:
 		$(GOGET) github.com/go-vgo/robotgo
 		
 win-exe:
-	$(GOBUILD) -o $(BINARY_NAME).exe -v-ldflags -H=windowsgui
+	$(GOBUILD) -o $(BINARY_NAME).exe -v -H=windowsgui
 
 build-win32:
 		CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BINARY_UNIX) -v
