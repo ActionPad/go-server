@@ -5,8 +5,7 @@ import (
 )
 
 func main() {
-	fmt.Println("Hello World")
-	keytype()
+	fmt.Println("ActionPad Server")
 	server := Server{}
 	server.runOnDeviceIP(2960)
 }

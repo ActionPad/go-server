@@ -48,6 +48,7 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 
 func authHandler(w http.ResponseWriter, r *http.Request) {
 	authCode := r.Header.Get("Authorization")
+	// Computer will have an auth code later on
 	if authCode == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
