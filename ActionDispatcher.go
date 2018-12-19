@@ -5,6 +5,6 @@ type ActionDispatcher interface {
 }
 
 type Action struct {
-	actionType string
-	commands   []string
+	Type string `json:"type"`
+	Commands   []string `json:"commands"`
 }

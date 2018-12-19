@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/go-vgo/robotgo"
 	"errors"
 	"fmt"
 	"net"
@@ -16,6 +17,7 @@ type Server struct {
 	port int
 	host string
 	devices []*Device
+	sessionDevices map[string]*Device 
 	httpServer *http.Server
 }
 
@@ -38,8 +40,13 @@ func (server Server) runOnDeviceIP(port int) error {
 	return errors.New("Could not bind to any IP address.")
 }
 
-func pingHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello World")
+func authorizeRequest(w http.ResponseWriter, authCode string) bool {
+	// Computer will have an auth code later on
+	if authCode == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return false
+	}
+	return true
 }
 
 func testHandler(w http.ResponseWriter, r *http.Request) {
@@ -47,23 +54,45 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func authHandler(w http.ResponseWriter, r *http.Request) {
-	authCode := r.Header.Get("Authorization")
-	// Computer will have an auth code later on
-	if authCode == "" {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	if authorizeRequest(w,r.Header.Get("Authorization")) == false {
 		return
 	}
+
 	var device Device
 	err := json.NewDecoder(r.Body).Decode(&device)
 	if err != nil {
 		http.Error(w, "Could not decode provided JSON.", http.StatusBadRequest)
+		return
 	}
-	device.SessionId = "secret_code"
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(device)
+
+	allow := robotgo.ShowAlert("ActionPad Server","Allow " + device.Name + " to control this computer with ActionPad?","Yes","No");
+	if allow == 0 {
+		device.SessionId = "secret_code"
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(device)
+	} else {
+		fmt.Println("Rejected")
+		return
+	}
 }
 
+func rootHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w,"ActionPad Server 2.0");
+}
 
+func actionHandler(w http.ResponseWriter, r *http.Request) {
+	if authorizeRequest(w,r.Header.Get("Authorization")) == false {
+		return
+	}
+
+	var action Action
+	err := json.NewDecoder(r.Body).Decode(&action)
+	if err != nil {
+		http.Error(w, "Could not decode provided JSON.", http.StatusBadRequest)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(action)
+}
 
 func (server Server) run(port int, host string) error {
 	if port < 0 || port > 65535 {
@@ -77,14 +106,15 @@ func (server Server) run(port int, host string) error {
 	server.httpServer = &http.Server{
 		Addr: addr,
 		Handler: router,
-		WriteTimeout: 15 * time.Second,
-        ReadTimeout:  15 * time.Second,
+		WriteTimeout: 60 * time.Second,
+        ReadTimeout:  60 * time.Second,
 	}
 
 	// routes
-	router.HandleFunc("/", pingHandler).Methods("GET")
+	router.HandleFunc("/", rootHandler).Methods("GET")
 	router.HandleFunc("/test", testHandler).Methods("GET")
-	router.HandleFunc("/authenticate",authHandler).Methods("POST")
+	router.HandleFunc("/auth",authHandler).Methods("POST")
+	router.HandleFunc("/action/{deviceId}/{sessionId}",actionHandler).Methods("POST")
 
 	err := server.httpServer.ListenAndServe()
 	if err != nil {
