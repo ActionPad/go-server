@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/go-vgo/robotgo"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -9,16 +9,17 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"encoding/json"
+
+	"github.com/go-vgo/robotgo"
 	"github.com/gorilla/mux"
 )
 
 type Server struct {
-	port int
-	host string
-	devices []*Device
-	sessionDevices map[string]*Device 
-	httpServer *http.Server
+	port           int
+	host           string
+	devices        []*Device
+	sessionDevices map[string]*Device
+	httpServer     *http.Server
 }
 
 func (server Server) runOnDeviceIP(port int) error {
@@ -36,6 +37,8 @@ func (server Server) runOnDeviceIP(port int) error {
 			}
 		}
 	}
+	server.sessionDevices = make(map[string]*Device)
+	server.port = port
 	server.run(port, ip)
 	return errors.New("Could not bind to any IP address.")
 }
@@ -53,8 +56,8 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 	test1()
 }
 
-func authHandler(w http.ResponseWriter, r *http.Request) {
-	if authorizeRequest(w,r.Header.Get("Authorization")) == false {
+func (server Server) authHandler(w http.ResponseWriter, r *http.Request) {
+	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
 
@@ -65,9 +68,11 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	allow := robotgo.ShowAlert("ActionPad Server","Allow " + device.Name + " to control this computer with ActionPad?","Yes","No");
+	allow := robotgo.ShowAlert("ActionPad Server", "Allow "+device.Name+" to control this computer with ActionPad?", "Yes", "No")
 	if allow == 0 {
-		device.SessionId = "secret_code"
+		device.SessionId = generateRandomStr(16)
+		fmt.Println("Key", device.SessionId)
+		server.sessionDevices[device.SessionId] = &device
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(device)
 	} else {
@@ -77,21 +82,32 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w,"ActionPad Server 2.0");
+	fmt.Fprintf(w, "ActionPad Server 2.0")
 }
 
-func actionHandler(w http.ResponseWriter, r *http.Request) {
-	if authorizeRequest(w,r.Header.Get("Authorization")) == false {
+func (server Server) actionHandler(w http.ResponseWriter, r *http.Request) {
+	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
 
-	var action Action
-	err := json.NewDecoder(r.Body).Decode(&action)
-	if err != nil {
-		http.Error(w, "Could not decode provided JSON.", http.StatusBadRequest)
+	params := mux.Vars(r)
+	uuid := params["uuid"]
+	sessionId := params["sessionId"]
+
+	device := server.sessionDevices[sessionId]
+
+	if device != nil && device.UUID == uuid {
+		var action Action
+		err := json.NewDecoder(r.Body).Decode(&action)
+		if err != nil {
+			http.Error(w, "Could not decode provided JSON.", http.StatusBadRequest)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(action)
+	} else {
+		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(action)
+
 }
 
 func (server Server) run(port int, host string) error {
@@ -104,24 +120,26 @@ func (server Server) run(port int, host string) error {
 	addr := strings.Join([]string{host, ":", strconv.Itoa(port)}, "")
 
 	server.httpServer = &http.Server{
-		Addr: addr,
-		Handler: router,
+		Addr:         addr,
+		Handler:      router,
 		WriteTimeout: 60 * time.Second,
-        ReadTimeout:  60 * time.Second,
+		ReadTimeout:  60 * time.Second,
 	}
+
+	server.port = port
+	server.host = host
 
 	// routes
 	router.HandleFunc("/", rootHandler).Methods("GET")
 	router.HandleFunc("/test", testHandler).Methods("GET")
-	router.HandleFunc("/auth",authHandler).Methods("POST")
-	router.HandleFunc("/action/{deviceId}/{sessionId}",actionHandler).Methods("POST")
+	router.HandleFunc("/auth", server.authHandler).Methods("POST")
+	router.HandleFunc("/action/{uuid}/{sessionId}", server.actionHandler).Methods("POST")
 
 	err := server.httpServer.ListenAndServe()
 	if err != nil {
 		return err
 	}
-	server.port = port
-	server.host = host
+
 	return nil // no errors, server running
 }
 
