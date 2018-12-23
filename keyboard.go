@@ -2,13 +2,11 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
-	"sync"
 
 	"github.com/go-vgo/robotgo"
 )
-
-var mutex = &sync.Mutex{}
 
 func keyIsModifier(key string) bool {
 	return key == "ctrl" || key == "command" || key == "alt" || key == "shift" || key == "super"
@@ -42,32 +40,34 @@ func keyPressSequence(commands []string) {
 }
 
 func keyPress(key string, modifiers []string) {
-	mutex.Lock()
+	// mutex.Lock()
 	fmt.Printf("Key Press: <%s> Modifiers: %v (%d)\n", key, modifiers, len(modifiers))
+	// check if character is "special", can't be typed in a single keypress
+	match, _ := regexp.MatchString("[~!@#$%^&*()_+{}|:\"<>?]", key)
 	if len(modifiers) > 0 {
 		robotgo.KeyTap(key, modifiers)
+	} else if match == true {
+		robotgo.TypeString(key)
 	} else {
 		robotgo.KeyTap(key)
 	}
+
+	if match == true {
+		modifiers = append(modifiers, "shift")
+	}
 	robotgo.MilliSleep(125)
-	mutex.Unlock()
+	// mutex.Unlock()
 }
 
 func keyHold(key string) {
-	mutex.Lock()
 	robotgo.KeyToggle(key, "down")
-	mutex.Unlock()
 }
 
 func keyRelease(key string) {
-	mutex.Lock()
 	robotgo.KeyToggle(key, "up")
 	robotgo.MilliSleep(125)
-	mutex.Unlock()
 }
 
 func typeString(str string, cpm float64) {
-	mutex.Lock()
 	robotgo.TypeStr(str, cpm)
-	mutex.Unlock()
 }
