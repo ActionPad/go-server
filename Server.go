@@ -52,10 +52,6 @@ func authorizeRequest(w http.ResponseWriter, authCode string) bool {
 	return true
 }
 
-func testHandler(w http.ResponseWriter, r *http.Request) {
-	test1()
-}
-
 func (server Server) authHandler(w http.ResponseWriter, r *http.Request) {
 	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
@@ -71,7 +67,6 @@ func (server Server) authHandler(w http.ResponseWriter, r *http.Request) {
 	allow := robotgo.ShowAlert("ActionPad Server", "Allow "+device.Name+" to control this computer with ActionPad?", "Yes", "No")
 	if allow == 0 {
 		device.SessionId = generateRandomStr(16)
-		fmt.Println("Key", device.SessionId)
 		server.sessionDevices[device.SessionId] = &device
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(device)
@@ -101,6 +96,12 @@ func (server Server) actionHandler(w http.ResponseWriter, r *http.Request) {
 		err := json.NewDecoder(r.Body).Decode(&action)
 		if err != nil {
 			http.Error(w, "Could not decode provided JSON.", http.StatusBadRequest)
+			return
+		}
+		err = action.dispatch()
+		if err != nil {
+			http.Error(w, "Invalid Action", http.StatusBadRequest)
+			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(action)
@@ -131,7 +132,6 @@ func (server Server) run(port int, host string) error {
 
 	// routes
 	router.HandleFunc("/", rootHandler).Methods("GET")
-	router.HandleFunc("/test", testHandler).Methods("GET")
 	router.HandleFunc("/auth", server.authHandler).Methods("POST")
 	router.HandleFunc("/action/{uuid}/{sessionId}", server.actionHandler).Methods("POST")
 
