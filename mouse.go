@@ -8,6 +8,11 @@ import (
 	"github.com/go-vgo/robotgo"
 )
 
+type MousePos struct {
+	X int `json:"x"`
+	Y int `json:"y"`
+}
+
 func mouseEventSequence(commands []string) {
 	robotgo.Sleep(3)
 	for _, command := range commands {
@@ -55,10 +60,6 @@ func mousePointerParse(command string) {
 	}
 	robotgo.MoveMouse(posX, posY)
 	robotgo.MilliSleep(125)
-}
-
-func getMousePos() {
-
 }
 
 func mouseHold(key string) {

@@ -80,6 +80,28 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "ActionPad Server 2.0")
 }
 
+func (server Server) mousePosHandler(w http.ResponseWriter, r *http.Request) {
+	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
+		return
+	}
+
+	params := mux.Vars(r)
+	uuid := params["uuid"]
+	sessionId := params["sessionId"]
+
+	device := server.sessionDevices[sessionId]
+
+	if device != nil && device.UUID == uuid {
+		var pos MousePos
+		pos.X, pos.Y = robotgo.GetMousePos()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(pos)
+	} else {
+		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	}
+
+}
+
 func (server Server) actionHandler(w http.ResponseWriter, r *http.Request) {
 	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
@@ -134,6 +156,7 @@ func (server Server) run(port int, host string) error {
 	router.HandleFunc("/", rootHandler).Methods("GET")
 	router.HandleFunc("/auth", server.authHandler).Methods("POST")
 	router.HandleFunc("/action/{uuid}/{sessionId}", server.actionHandler).Methods("POST")
+	router.HandleFunc("/mouse_pos/{uuid}/{sessionId}", server.mousePosHandler).Methods("GET")
 
 	err := server.httpServer.ListenAndServe()
 	if err != nil {
