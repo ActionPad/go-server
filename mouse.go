@@ -22,6 +22,9 @@ func mouseEventSequence(commands []string) {
 		if strings.Contains(command, "scroll") {
 			mouseScrollParse(command)
 		}
+		if strings.Contains(command, "pointer") {
+			mousePointerParse(command)
+		}
 	}
 }
 
@@ -43,7 +46,15 @@ func mouseScrollParse(command string) {
 }
 
 func mousePointerParse(command string) {
-
+	components := strings.Split(command, "::")
+	posX, err := strconv.Atoi(components[1])
+	posY, err := strconv.Atoi(components[2])
+	if err != nil || len(components) < 3 {
+		fmt.Printf("Command <%s> not formatted properly.\n", command)
+		return
+	}
+	robotgo.MoveMouse(posX, posY)
+	robotgo.MilliSleep(125)
 }
 
 func getMousePos() {
