@@ -10,6 +10,10 @@ func (action Action) dispatch() error {
 	case "keyboard":
 		keyPressSequence(action.Commands)
 		break
+	case "mouse":
+		mouseEventSequence(action.Commands)
+		break
 	}
+
 	return nil
 }

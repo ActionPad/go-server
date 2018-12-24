@@ -51,10 +51,6 @@ func keyPress(key string, modifiers []string) {
 	} else {
 		robotgo.KeyTap(key)
 	}
-
-	if match == true {
-		modifiers = append(modifiers, "shift")
-	}
 	robotgo.MilliSleep(125)
 	// mutex.Unlock()
 }
