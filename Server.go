@@ -20,6 +20,7 @@ type Server struct {
 	devices        []*Device
 	sessionDevices map[string]*Device
 	httpServer     *http.Server
+	inputTicker    *time.Ticker
 }
 
 func (server Server) runOnDeviceIP(port int) error {
@@ -37,10 +38,13 @@ func (server Server) runOnDeviceIP(port int) error {
 			}
 		}
 	}
+	if ip == "" {
+		return errors.New("Could not bind to any IP address.")
+	}
 	server.sessionDevices = make(map[string]*Device)
 	server.port = port
-	server.run(port, ip)
-	return errors.New("Could not bind to any IP address.")
+	go server.run(port, ip)
+	return nil
 }
 
 func authorizeRequest(w http.ResponseWriter, authCode string) bool {
@@ -137,7 +141,7 @@ func (server Server) run(port int, host string) error {
 	if port < 0 || port > 65535 {
 		return errors.New("Provided port is out of range. Server offline.")
 	}
-	fmt.Printf("Server running on: %s:%d\n", host, port)
+
 	router := mux.NewRouter()
 
 	addr := strings.Join([]string{host, ":", strconv.Itoa(port)}, "")
@@ -162,6 +166,8 @@ func (server Server) run(port int, host string) error {
 	if err != nil {
 		return err
 	}
+
+	fmt.Printf("Server running on: %s:%d\n", host, port)
 
 	return nil // no errors, server running
 }
