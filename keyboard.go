@@ -24,7 +24,7 @@ func keyPressSequence(commands []string) {
 		}
 		// support older panel modifiers
 		if key == "super" {
-			key = "command"
+			key = "cmd"
 		}
 		if keyIsModifier(key) == true {
 			modifiers = append(modifiers, key)

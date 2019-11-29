@@ -22,6 +22,7 @@ run:
 deps:
 		$(GOGET) github.com/gorilla/mux
 		$(GOGET) github.com/go-vgo/robotgo
+		$(GOGET) github.com/skratchdot/open-golang/open
 		
 win-exe:
 	$(GOBUILD) -o $(BINARY_NAME).exe -v -ldflags -H=windowsgui
