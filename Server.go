@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -22,6 +23,10 @@ type Server struct {
 	httpServer     *http.Server
 }
 
+type Result struct {
+	Data string `json:"result"`
+}
+
 func (server Server) runOnDeviceIP(port int) error {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
@@ -34,6 +39,7 @@ func (server Server) runOnDeviceIP(port int) error {
 			if ipnet.IP.To4() != nil {
 				ip = ipnet.IP.String()
 				fmt.Printf("Found IP %s\n", ip)
+				break // TODO: Better IP discovery
 			}
 		}
 	}
@@ -78,6 +84,48 @@ func (server Server) authHandler(w http.ResponseWriter, r *http.Request) {
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "ActionPad Server 2.0")
+}
+
+func (server Server) browseFileHandler(w http.ResponseWriter, r *http.Request) {
+	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
+		return
+	}
+
+	params := mux.Vars(r)
+	uuid := params["uuid"]
+	sessionId := params["sessionId"]
+
+	device := server.sessionDevices[sessionId]
+
+	if device != nil && device.UUID == uuid {
+		// path, err := dialog.File().Title("ActionPad").Load()
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	http.Error(w, "Did not choose file.", http.StatusForbidden)
+		// 	return
+		// }
+
+		// TODO OS Checking, Move to separate file
+		out, err := exec.Command("osascript", "-e", "set apFile to choose file\nPOSIX path of apFile").Output()
+		// if runtime.GOOS == "windows" {
+		// 	cmd = exec.Command("tasklist")
+		// }
+		if err != nil {
+			fmt.Printf("cmd.Run() failed with %s\n", err)
+			http.Error(w, "Did not choose file.", http.StatusInternalServerError)
+			return
+		}
+		fmt.Printf("combined out:\n%s\n", string(out))
+
+		// fmt.Println("Got path: " + path)
+		result := Result{Data: string(out[:len(out)-1])}
+		fmt.Println(result)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(result)
+	} else {
+		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	}
+
 }
 
 func (server Server) mousePosHandler(w http.ResponseWriter, r *http.Request) {
@@ -157,6 +205,7 @@ func (server Server) run(port int, host string) error {
 	router.HandleFunc("/auth", server.authHandler).Methods("POST")
 	router.HandleFunc("/action/{uuid}/{sessionId}", server.actionHandler).Methods("POST")
 	router.HandleFunc("/mouse_pos/{uuid}/{sessionId}", server.mousePosHandler).Methods("GET")
+	router.HandleFunc("/browse/{uuid}/{sessionId}", server.browseFileHandler).Methods("GET")
 
 	err := server.httpServer.ListenAndServe()
 	if err != nil {
