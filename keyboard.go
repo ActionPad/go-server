@@ -9,7 +9,7 @@ import (
 )
 
 func keyIsModifier(key string) bool {
-	return key == "ctrl" || key == "command" || key == "alt" || key == "shift" || key == "super"
+	return strings.Contains(key, "ctrl") || strings.Contains(key, "cmd") || strings.Contains(key, "alt") || strings.Contains(key, "shift") || key == "super" || key == "command"
 }
 
 func keyPressSequence(commands []string) {
