@@ -24,8 +24,11 @@ deps:
 		$(GOGET) github.com/go-vgo/robotgo
 		$(GOGET) github.com/skratchdot/open-golang/open
 		$(GOGET) github.com/sqweek/dialog
-		
+
 win-exe:
+	$(GOBUILD) -o $(BINARY_NAME).exe -v
+
+win-exe-prod:
 	$(GOBUILD) -o $(BINARY_NAME).exe -v -ldflags -H=windowsgui
 
 build-win32:

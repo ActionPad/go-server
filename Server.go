@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-vgo/robotgo"
 	"github.com/gorilla/mux"
+	"github.com/sqweek/dialog"
 )
 
 type Server struct {
@@ -33,19 +33,22 @@ func (server Server) runOnDeviceIP(port int) error {
 		return err
 	}
 	ip := ""
+
+	server.sessionDevices = make(map[string]*Device)
+	server.port = port
+
 	for _, address := range addrs {
 		// check the address type and if it is not a loopback the display it
 		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
 			if ipnet.IP.To4() != nil {
 				ip = ipnet.IP.String()
 				fmt.Printf("Found IP %s\n", ip)
-				break // TODO: Better IP discovery
+				server.run(port, ip)
+
+				//break // TODO: Better IP discovery
 			}
 		}
 	}
-	server.sessionDevices = make(map[string]*Device)
-	server.port = port
-	server.run(port, ip)
 	return errors.New("Could not bind to any IP address.")
 }
 
@@ -70,8 +73,8 @@ func (server Server) authHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	allow := robotgo.ShowAlert("ActionPad Server", "Allow "+device.Name+" to control this computer with ActionPad?", "Yes", "No")
-	if allow == 0 {
+	allow := dialog.Message("%s", "Allow " + device.Name + " to control this computer using ActionPad?").Title("ActionPad Server").YesNo()
+	if allow == true {
 		device.SessionId = generateRandomStr(16)
 		server.sessionDevices[device.SessionId] = &device
 		w.Header().Set("Content-Type", "application/json")
@@ -98,27 +101,13 @@ func (server Server) browseFileHandler(w http.ResponseWriter, r *http.Request) {
 	device := server.sessionDevices[sessionId]
 
 	if device != nil && device.UUID == uuid {
-		// path, err := dialog.File().Title("ActionPad").Load()
-		// if err != nil {
-		// 	fmt.Println(err)
-		// 	http.Error(w, "Did not choose file.", http.StatusForbidden)
-		// 	return
-		// }
-
-		// TODO OS Checking, Move to separate file
-		out, err := exec.Command("osascript", "-e", "set apFile to choose file\nPOSIX path of apFile").Output()
-		// if runtime.GOOS == "windows" {
-		// 	cmd = exec.Command("tasklist")
-		// }
+		filename, err := browseFile()
 		if err != nil {
-			fmt.Printf("cmd.Run() failed with %s\n", err)
 			http.Error(w, "Did not choose file.", http.StatusInternalServerError)
 			return
 		}
-		fmt.Printf("combined out:\n%s\n", string(out))
+		result := Result{Data: filename}
 
-		// fmt.Println("Got path: " + path)
-		result := Result{Data: string(out[:len(out)-1])}
 		fmt.Println(result)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)
@@ -185,7 +174,7 @@ func (server Server) run(port int, host string) error {
 	if port < 0 || port > 65535 {
 		return errors.New("Provided port is out of range. Server offline.")
 	}
-	fmt.Printf("Server running on: %s:%d\n", host, port)
+	fmt.Printf("Attempting to run server on: %s:%d\n", host, port)
 	router := mux.NewRouter()
 
 	addr := strings.Join([]string{host, ":", strconv.Itoa(port)}, "")
