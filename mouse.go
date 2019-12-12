@@ -14,7 +14,6 @@ type MousePos struct {
 }
 
 func mouseEventSequence(commands []string) {
-	robotgo.Sleep(3)
 	for _, command := range commands {
 		if command == "lclick" {
 			robotgo.MouseClick("left")
