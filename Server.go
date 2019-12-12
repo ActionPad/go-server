@@ -12,7 +12,6 @@ import (
 
 	"github.com/go-vgo/robotgo"
 	"github.com/gorilla/mux"
-	"github.com/sqweek/dialog"
 )
 
 type Server struct {
@@ -73,8 +72,8 @@ func (server Server) authHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	allow := dialog.Message("%s", "Allow " + device.Name + " to control this computer using ActionPad?").Title("ActionPad Server").YesNo()
-	if allow == true {
+	allow := robotgo.ShowAlert("ActionPad Server", "Allow "+device.Name+" to control this computer with ActionPad?", "Yes", "No")
+	if allow == 0 {
 		device.SessionId = generateRandomStr(16)
 		server.sessionDevices[device.SessionId] = &device
 		w.Header().Set("Content-Type", "application/json")
