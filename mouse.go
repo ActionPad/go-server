@@ -14,7 +14,7 @@ type MousePos struct {
 }
 
 func mouseEventSequence(commands []string) {
-	robotgo.Sleep(3)
+	robotgo.MilliSleep(125)
 	for _, command := range commands {
 		if command == "lclick" {
 			robotgo.MouseClick("left")
@@ -58,6 +58,7 @@ func mousePointerParse(command string) {
 		fmt.Printf("Command <%s> not formatted properly.\n", command)
 		return
 	}
+	fmt.Println("Should move mouse")
 	robotgo.MoveMouse(posX, posY)
 	robotgo.MilliSleep(125)
 }

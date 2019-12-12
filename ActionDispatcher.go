@@ -1,7 +1,9 @@
 package main
 
 import (
+	"strconv"
 	"github.com/skratchdot/open-golang/open"
+	"github.com/go-vgo/robotgo"
 )
 
 type Action struct {
@@ -19,6 +21,15 @@ func (action Action) dispatch() error {
 		break
 	case "open":
 		open.Run(action.Commands[0])
+		break
+	case "delay":
+		delayStr := action.Commands[0]
+		duration, err := strconv.ParseFloat(delayStr, 64)
+		durationMs := int(duration * 1000)
+		robotgo.MilliSleep(durationMs)
+		if err != nil {
+			return err
+		}
 		break
 	}
 

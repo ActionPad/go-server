@@ -150,19 +150,19 @@ func (server Server) actionHandler(w http.ResponseWriter, r *http.Request) {
 	device := server.sessionDevices[sessionId]
 
 	if device != nil && device.UUID == uuid {
-		var action Action
-		err := json.NewDecoder(r.Body).Decode(&action)
+		var actionSequence ActionSequence
+		err := json.NewDecoder(r.Body).Decode(&actionSequence)
 		if err != nil {
 			http.Error(w, "Could not decode provided JSON.", http.StatusBadRequest)
 			return
 		}
-		err = action.dispatch()
+		err = actionSequence.dispatch()
 		if err != nil {
-			http.Error(w, "Invalid Action", http.StatusBadRequest)
+			http.Error(w, "Invalid Action(s)", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(action)
+		json.NewEncoder(w).Encode(actionSequence)
 	} else {
 		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
 	}
@@ -191,7 +191,7 @@ func (server Server) run(port int, host string) error {
 	// routes
 	router.HandleFunc("/", rootHandler).Methods("GET")
 	router.HandleFunc("/auth", server.authHandler).Methods("POST")
-	router.HandleFunc("/action/{uuid}/{sessionId}", server.actionHandler).Methods("POST")
+	router.HandleFunc("/actions/{uuid}/{sessionId}", server.actionHandler).Methods("POST")
 	router.HandleFunc("/mouse_pos/{uuid}/{sessionId}", server.mousePosHandler).Methods("GET")
 	router.HandleFunc("/browse/{uuid}/{sessionId}", server.browseFileHandler).Methods("GET")
 
