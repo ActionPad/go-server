@@ -22,10 +22,9 @@ func keyPressSequence(commands []string) {
 		if len(command) > 1 && strings.Contains(command, "~") {
 			key = strings.TrimSuffix(command, "~")
 		}
-		// support older panel modifiers
-		if key == "super" {
-			key = "cmd"
-		}
+
+		key = convertShortPanelKeyStr(key)
+
 		if keyIsModifier(key) == true {
 			modifiers = append(modifiers, key)
 		} else {
@@ -66,4 +65,28 @@ func keyRelease(key string) {
 
 func typeString(str string, cpm float64) {
 	robotgo.TypeStr(str, cpm)
+}
+
+// Support shortened panel key strings
+func convertShortPanelKeyStr(key string) string {
+	if key == "super" {
+		return "cmd"
+	}
+	if key == "del" {
+		return "delete"
+	}
+	if key == "ins" {
+		return "insert"
+	}
+	if key == "caps" {
+		return "capslock"
+	}
+	if key == "pgup" {
+		return "pageup"
+	}
+	if key == "pgdn" {
+		return "pagedown"
+	}
+
+	return key
 }
