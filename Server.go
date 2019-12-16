@@ -15,12 +15,13 @@ import (
 )
 
 type Server struct {
-	port           int
-	host           string
-	devices        []*Device
-	sessionDevices map[string]*Device
-	sessionInputs  map[string]*InputDispatcher
-	httpServer     *http.Server
+	port           	int
+	host           	string
+	devices        	[]*Device
+	sessionDevices 	map[string]*Device
+	sessionInputs  	map[string]*InputDispatcher
+	httpServer     	*http.Server
+	serverSecret	string	
 }
 
 type Result struct {
@@ -35,6 +36,8 @@ func (server Server) runOnDeviceIP(port int) error {
 	ip := ""
 
 	server.sessionDevices = make(map[string]*Device)
+	server.sessionInputs = make(map[string]*InputDispatcher)
+
 	server.port = port
 
 	for _, address := range addrs {
@@ -79,6 +82,7 @@ func (server Server) authHandler(w http.ResponseWriter, r *http.Request) {
 		server.sessionDevices[device.SessionId] = &device
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(device)
+		server.serverSecret = generateRandomStr(16)
 	} else {
 		fmt.Println("Rejected")
 		return
@@ -90,14 +94,98 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server Server) startInputHandler(w http.ResponseWriter, r *http.Request) {
-	
+	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
+		return
+	}
+
+	params := mux.Vars(r)
+	uuid := params["uuid"]
+	sessionId := params["sessionId"]
+
+	device := server.sessionDevices[sessionId]
+
+	inputDispatcher := &InputDispatcher{}
+
+	var input InputRequest
+	err := json.NewDecoder(r.Body).Decode(&input)
+	if err != nil {
+		http.Error(w, "Could not decode provided JSON.", http.StatusBadRequest)
+		return
+	}
+
+
+	if device != nil && device.UUID == uuid {
+		server.sessionInputs[device.SessionId + "-" + input.UUID] = inputDispatcher
+		inputDispatcher.InputAction = input.InputAction
+		inputDispatcher.startExecute()
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(input)
+	} else {
+		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	}
 }
 
 func (server Server) sustainInputHandler(w http.ResponseWriter, r *http.Request) {
+	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
+		return
+	}
+
+	params := mux.Vars(r)
+	uuid := params["uuid"]
+	sessionId := params["sessionId"]
+	inputId := params["inputId"]
+
+	device := server.sessionDevices[sessionId]
+
+	
+
+	if device != nil && device.UUID == uuid {
+		inputDispatcher, ok := server.sessionInputs[device.SessionId + "-" + inputId]
+		if !ok {
+			http.Error(w, "Invalid input ID.", http.StatusBadRequest)
+			return
+		}
+
+		inputDispatcher.sustainExecute()
+
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, "{\"success\":true}")
+	} else {
+		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	}
 }
 
 func (server Server) stopInputHandler(w http.ResponseWriter, r *http.Request) {
+	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
+		return
+	}
 
+	params := mux.Vars(r)
+	uuid := params["uuid"]
+	sessionId := params["sessionId"]
+	inputId := params["inputId"]
+
+	device := server.sessionDevices[sessionId]
+
+	if device != nil && device.UUID == uuid {
+		inputDispatcherId := device.SessionId + "-" + inputId
+
+		inputDispatcher, ok := server.sessionInputs[inputDispatcherId]
+		if !ok {
+			http.Error(w, "Invalid input ID.", http.StatusBadRequest)
+			return
+		}
+		
+		inputDispatcher.stopExecute()
+
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, "{\"success\":true}")
+
+		delete(server.sessionInputs, inputDispatcherId)
+	} else {
+		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	}
 }
 
 func (server Server) browseFileHandler(w http.ResponseWriter, r *http.Request) {
@@ -206,6 +294,9 @@ func (server Server) run(port int, host string) error {
 	router.HandleFunc("/action/{uuid}/{sessionId}", server.actionHandler).Methods("POST")
 	router.HandleFunc("/mouse_pos/{uuid}/{sessionId}", server.mousePosHandler).Methods("GET")
 	router.HandleFunc("/browse/{uuid}/{sessionId}", server.browseFileHandler).Methods("GET")
+	router.HandleFunc("/input/start/{uuid}/{sessionId}", server.startInputHandler).Methods("POST")
+	router.HandleFunc("/input/sustain/{uuid}/{sessionId}/{inputId}", server.sustainInputHandler).Methods("POST")
+	router.HandleFunc("/input/stop/{uuid}/{sessionId}/{inputId}", server.stopInputHandler).Methods("POST")
 
 	err := server.httpServer.ListenAndServe()
 	if err != nil {

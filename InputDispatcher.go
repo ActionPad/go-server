@@ -8,6 +8,11 @@ import (
 	"fmt"
 )
 
+type InputRequest struct {
+	UUID		string	`json:"uuid"`
+	InputAction	Action	`json:"inputAction"`
+}
+
 type InputDispatcher struct {
 	ExecuteTimer	*time.Timer
 	InputAction		Action
@@ -103,7 +108,11 @@ func mousePointerInputExecute(command string) {
 
 func (inputDispatcher *InputDispatcher) inputTimeout() {
 	if inputDispatcher.Sustain {
+		fmt.Println("Will sustain")
 		inputDispatcher.ExecuteTimer.Reset(3 * time.Second)
+		inputDispatcher.Sustain = false
+		<-inputDispatcher.ExecuteTimer.C
+		inputDispatcher.inputTimeout()
 	} else {
 		inputDispatcher.stopExecute()
 	}
@@ -114,20 +123,21 @@ func (inputDispatcher *InputDispatcher) sustainExecute() {
 }
 
 func (inputDispatcher *InputDispatcher) startExecute() {
+	robotgo.Sleep(5)
 	inputDispatcher.ExecuteTimer = time.NewTimer(3 * time.Second) // 3 second timeout
 	inputDispatcher.Sustain = false
 	inputDispatcher.Running = true
 	go func(inputDispatcher *InputDispatcher) {
-		if inputDispatcher.InputAction.Type == "keyboard" {
-			inputDispatcher.startKeyboardExecute()
-		} else {
-			for inputDispatcher.Running {
+		for inputDispatcher.Running {
+			if inputDispatcher.InputAction.Type == "keyboard" {
+				inputDispatcher.startKeyboardExecute()
+			} else {
 				inputDispatcher.startMouseExecute()
 			}
 		}
 	}(inputDispatcher)
 	<-inputDispatcher.ExecuteTimer.C
-        inputDispatcher.inputTimeout()
+		inputDispatcher.inputTimeout()
 }
 
 func (inputDispatcher *InputDispatcher) stopExecute() {
