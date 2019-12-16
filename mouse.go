@@ -61,11 +61,11 @@ func mousePointerParse(command string) {
 	robotgo.MilliSleep(125)
 }
 
-func mouseHold(key string) {
-	robotgo.KeyToggle(key, "down")
+func mouseHold(button string) {
+	robotgo.MouseToggle("down", button)
 }
 
-func mouseRelease(key string) {
-	robotgo.KeyToggle(key, "up")
+func mouseRelease(button string) {
+	robotgo.MouseToggle("up", button)
 	robotgo.MilliSleep(125)
 }
