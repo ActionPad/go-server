@@ -69,24 +69,27 @@ func typeString(str string, cpm float64) {
 
 // Support shortened panel key strings
 func convertShortPanelKeyStr(key string) string {
-	if key == "super" {
+	switch key {
+	case "super":
 		return "cmd"
-	}
-	if key == "del" {
+	case "del":
 		return "delete"
-	}
-	if key == "ins" {
+	case "ins":
 		return "insert"
-	}
-	if key == "caps" {
+	case "caps":
 		return "capslock"
-	}
-	if key == "pgup" {
+	case "pgup":
 		return "pageup"
-	}
-	if key == "pgdn" {
+	case "pgdn":
 		return "pagedown"
 	}
 
 	return key
+}
+
+func testKeyboard() {
+	robotgo.Sleep(10)
+	keyHold("w")
+	robotgo.Sleep(5)
+	keyRelease("w")
 }

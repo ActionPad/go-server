@@ -19,6 +19,7 @@ type Server struct {
 	host           string
 	devices        []*Device
 	sessionDevices map[string]*Device
+	sessionInputs  map[string]*InputDispatcher
 	httpServer     *http.Server
 }
 
@@ -86,6 +87,17 @@ func (server Server) authHandler(w http.ResponseWriter, r *http.Request) {
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "ActionPad Server 2.0")
+}
+
+func (server Server) startInputHandler(w http.ResponseWriter, r *http.Request) {
+	
+}
+
+func (server Server) sustainInputHandler(w http.ResponseWriter, r *http.Request) {
+}
+
+func (server Server) stopInputHandler(w http.ResponseWriter, r *http.Request) {
+
 }
 
 func (server Server) browseFileHandler(w http.ResponseWriter, r *http.Request) {
