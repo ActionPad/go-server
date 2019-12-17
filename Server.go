@@ -66,6 +66,7 @@ func authorizeRequest(w http.ResponseWriter, authCode string) bool {
 
 func (server Server) authHandler(w http.ResponseWriter, r *http.Request) {
 	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
+		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
 		return
 	}
 
@@ -95,6 +96,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 
 func (server Server) startInputHandler(w http.ResponseWriter, r *http.Request) {
 	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
+		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
 		return
 	}
 
@@ -128,6 +130,7 @@ func (server Server) startInputHandler(w http.ResponseWriter, r *http.Request) {
 
 func (server Server) sustainInputHandler(w http.ResponseWriter, r *http.Request) {
 	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
+		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
 		return
 	}
 
@@ -158,6 +161,7 @@ func (server Server) sustainInputHandler(w http.ResponseWriter, r *http.Request)
 
 func (server Server) stopInputHandler(w http.ResponseWriter, r *http.Request) {
 	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
+		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
 		return
 	}
 
@@ -190,6 +194,7 @@ func (server Server) stopInputHandler(w http.ResponseWriter, r *http.Request) {
 
 func (server Server) browseFileHandler(w http.ResponseWriter, r *http.Request) {
 	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
+		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
 		return
 	}
 
@@ -218,6 +223,7 @@ func (server Server) browseFileHandler(w http.ResponseWriter, r *http.Request) {
 
 func (server Server) mousePosHandler(w http.ResponseWriter, r *http.Request) {
 	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
+		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
 		return
 	}
 
@@ -240,6 +246,7 @@ func (server Server) mousePosHandler(w http.ResponseWriter, r *http.Request) {
 
 func (server Server) actionHandler(w http.ResponseWriter, r *http.Request) {
 	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
+		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
 		return
 	}
 
@@ -267,6 +274,48 @@ func (server Server) actionHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
 	}
 
+}
+
+func (server Server) sessionStatusHandler(w http.ResponseWriter, r *http.Request) {
+	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
+		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+		return
+	}
+
+	params := mux.Vars(r)
+	uuid := params["uuid"]
+	sessionId := params["sessionId"]
+
+	device := server.sessionDevices[sessionId]
+
+	if device != nil && device.UUID == uuid {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(device)
+	} else {
+		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	}
+}
+
+func (server Server) stopSessionHandler(w http.ResponseWriter, r *http.Request) {
+	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
+		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+		return
+	}
+
+	params := mux.Vars(r)
+	uuid := params["uuid"]
+	sessionId := params["sessionId"]
+
+	device := server.sessionDevices[sessionId]
+
+	if device != nil && device.UUID == uuid {
+		delete(server.sessionDevices, sessionId)
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(device)
+	} else {
+		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	}
 }
 
 func (server Server) run(port int, host string) error {
@@ -297,6 +346,8 @@ func (server Server) run(port int, host string) error {
 	router.HandleFunc("/input/start/{uuid}/{sessionId}", server.startInputHandler).Methods("POST")
 	router.HandleFunc("/input/sustain/{uuid}/{sessionId}/{inputId}", server.sustainInputHandler).Methods("POST")
 	router.HandleFunc("/input/stop/{uuid}/{sessionId}/{inputId}", server.stopInputHandler).Methods("POST")
+	router.HandleFunc("/session/{uuid}/{sessionId}", server.sessionStatusHandler).Methods("GET")
+	router.HandleFunc("/session/{uuid}/{sessionId}", server.stopSessionHandler).Methods("DELETE")
 
 	err := server.httpServer.ListenAndServe()
 	if err != nil {
