@@ -108,8 +108,7 @@ func mousePointerInputExecute(command string) {
 
 func (inputDispatcher *InputDispatcher) inputTimeout() {
 	if inputDispatcher.Sustain {
-		fmt.Println("Will sustain")
-		inputDispatcher.ExecuteTimer.Reset(3 * time.Second)
+		inputDispatcher.ExecuteTimer.Reset(2 * time.Second)
 		inputDispatcher.Sustain = false
 		<-inputDispatcher.ExecuteTimer.C
 		inputDispatcher.inputTimeout()
@@ -123,8 +122,10 @@ func (inputDispatcher *InputDispatcher) sustainExecute() {
 }
 
 func (inputDispatcher *InputDispatcher) startExecute() {
-	robotgo.Sleep(5)
-	inputDispatcher.ExecuteTimer = time.NewTimer(3 * time.Second) // 3 second timeout
+	if inputDispatcher.Running {
+		return
+	}
+	inputDispatcher.ExecuteTimer = time.NewTimer(2 * time.Second) // 3 second timeout
 	inputDispatcher.Sustain = false
 	inputDispatcher.Running = true
 	go func(inputDispatcher *InputDispatcher) {
@@ -136,15 +137,16 @@ func (inputDispatcher *InputDispatcher) startExecute() {
 			}
 		}
 	}(inputDispatcher)
-	<-inputDispatcher.ExecuteTimer.C
-		inputDispatcher.inputTimeout()
+	go func(inputDispatcher *InputDispatcher) {
+		<-inputDispatcher.ExecuteTimer.C
+			inputDispatcher.inputTimeout()
+	}(inputDispatcher)
 }
 
 func (inputDispatcher *InputDispatcher) stopExecute() {
 	inputDispatcher.Sustain = false
 	inputDispatcher.Running = false
 	inputDispatcher.ExecuteTimer.Stop()
-	fmt.Println("Timeout, stop running")
 	if inputDispatcher.InputAction.Type == "keyboard" {
 		inputDispatcher.stopKeyboardExecute()
 	} else {

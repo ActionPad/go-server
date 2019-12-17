@@ -78,6 +78,7 @@ func (server Server) authHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	allow := robotgo.ShowAlert("ActionPad Server", "Allow "+device.Name+" to control this computer with ActionPad?", "Yes", "No")
+	robotgo.SetActive(robotgo.GetHandPid(robotgo.GetPID()))
 	if allow == 0 {
 		device.SessionId = generateRandomStr(16)
 		server.sessionDevices[device.SessionId] = &device
