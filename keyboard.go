@@ -71,7 +71,7 @@ func typeString(str string, cpm float64) {
 func convertShortPanelKeyStr(key string) string {
 	switch key {
 	case "super":
-		return "cmd"
+		return "command"
 	case "del":
 		return "delete"
 	case "ins":
