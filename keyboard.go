@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"runtime"
 
 	"github.com/go-vgo/robotgo"
 )
@@ -30,6 +31,10 @@ func keyPressSequence(commands []string) {
 		} else {
 			keys = append(keys, key)
 		}
+	}
+	if len(keys) == 0 && len(modifiers) != 0 {
+		keys = modifiers
+		modifiers = nil
 	}
 	for _, key := range keys {
 		if key != "" {
@@ -71,7 +76,11 @@ func typeString(str string, cpm float64) {
 func convertShortPanelKeyStr(key string) string {
 	switch key {
 	case "super":
-		return "command"
+		if runtime.GOOS == "darwin" {
+			return "command"
+		} else {
+			return "cmd" // actually Windows key
+		}
 	case "del":
 		return "delete"
 	case "ins":
