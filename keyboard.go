@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"regexp"
-	"strings"
 	"runtime"
+	"strings"
 
 	"github.com/go-vgo/robotgo"
 )
@@ -50,7 +50,7 @@ func keyPress(key string, modifiers []string) {
 	match, _ := regexp.MatchString("[~!@#$%^&*()_+{}|:\"<>?]", key)
 	if len(modifiers) > 0 {
 		robotgo.KeyTap(key, modifiers)
-	} else if match == true {
+	} else if match == true && len(key) == 1 {
 		robotgo.TypeString(key)
 	} else {
 		robotgo.KeyTap(key)

@@ -15,13 +15,13 @@ import (
 )
 
 type Server struct {
-	port           	int
-	host           	string
-	devices        	[]*Device
-	sessionDevices 	map[string]*Device
-	sessionInputs  	map[string]*InputDispatcher
-	httpServer     	*http.Server
-	serverSecret	string	
+	port           int
+	host           string
+	devices        []*Device
+	sessionDevices map[string]*Device
+	sessionInputs  map[string]*InputDispatcher
+	httpServer     *http.Server
+	serverSecret   string
 }
 
 type Result struct {
@@ -116,9 +116,8 @@ func (server Server) startInputHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	if device != nil && device.UUID == uuid {
-		server.sessionInputs[device.SessionId + "-" + input.UUID] = inputDispatcher
+		server.sessionInputs[device.SessionId+"-"+input.UUID] = inputDispatcher
 		inputDispatcher.InputAction = input.InputAction
 		inputDispatcher.startExecute()
 
@@ -142,10 +141,8 @@ func (server Server) sustainInputHandler(w http.ResponseWriter, r *http.Request)
 
 	device := server.sessionDevices[sessionId]
 
-	
-
 	if device != nil && device.UUID == uuid {
-		inputDispatcher, ok := server.sessionInputs[device.SessionId + "-" + inputId]
+		inputDispatcher, ok := server.sessionInputs[device.SessionId+"-"+inputId]
 		if !ok {
 			http.Error(w, "Invalid input ID.", http.StatusBadRequest)
 			return
@@ -181,7 +178,7 @@ func (server Server) stopInputHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid input ID.", http.StatusBadRequest)
 			return
 		}
-		
+
 		inputDispatcher.stopExecute()
 
 		w.Header().Set("Content-Type", "application/json")
