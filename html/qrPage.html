@@ -38,7 +38,13 @@
 <h3 class="subHeader">Server Information</h3>
 <p class="textContent">IP: ~~IP~~</p>
 <p class="textContent">Port: ~~PORT~~</p>
+<p id="secret" class="textContent"></p>
 
 <p class="textContent">Connect to ActionPad by scanning the following QR code from the "Add Computer" dialog. Alternatively, you can manually provide the IP address to the app.</p>
 
 <p class="textContent">You can close this window and the server will continue running in the background. Click on the ActionPad icon in the system tray for server controls.</p>
+
+<script>
+function parse_query_string(e){for(var n=e.split("&"),o={},r=0;r<n.length;r++){var t=n[r].split("="),s=decodeURIComponent(t[0]),d=decodeURIComponent(t[1]);if(void 0===o[s])o[s]=decodeURIComponent(d);else if("string"==typeof o[s]){var p=[o[s],decodeURIComponent(d)];o[s]=p}else o[s].push(decodeURIComponent(d))}return o}var parsed_qs=parse_query_string(window.location.href);
+document.querySelector('#secret').textContent = 'Secret: ' + parsed_qs[Object.keys(parsed_qs)[0]]
+</script>

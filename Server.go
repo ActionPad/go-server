@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-vgo/robotgo"
 	"github.com/gorilla/mux"
+	"github.com/spf13/viper"
 )
 
 type Server struct {
@@ -93,6 +94,12 @@ func (server Server) authHandler(w http.ResponseWriter, r *http.Request) {
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "ActionPad Server 2.0")
+}
+
+func infoHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	pageContent := assembleQRPage(viper.GetString("activeHost"), viper.GetInt("activePort"), viper.GetString("serverSecret"))
+	fmt.Fprintf(w, pageContent)
 }
 
 func (server Server) startInputHandler(w http.ResponseWriter, r *http.Request) {
@@ -340,6 +347,7 @@ func (server Server) run(port int, host string) error {
 
 	// routes
 	router.HandleFunc("/", rootHandler).Methods("GET")
+	router.HandleFunc("/info", infoHandler).Methods("GET")
 	router.HandleFunc("/auth", server.authHandler).Methods("POST")
 	router.HandleFunc("/action/{uuid}/{sessionId}", server.actionHandler).Methods("POST")
 	router.HandleFunc("/mouse_pos/{uuid}/{sessionId}", server.mousePosHandler).Methods("GET")

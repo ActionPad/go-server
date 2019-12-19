@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/url"
 	"os"
 
 	"github.com/getlantern/systray"
@@ -15,8 +14,9 @@ func (instanceManager *ActionPadInstanceManager) runInterface() {
 }
 
 func (instanceManager *ActionPadInstanceManager) showQRWindow() {
-	pageContent := url.PathEscape(assembleQRPage(viper.GetString("activeHost"), viper.GetInt("activePort")))
-	systray.ShowAppWindow("data:text/html," + pageContent)
+	// pageContent := url.PathEscape(assembleQRPage(viper.GetString("activeHost"), viper.GetInt("activePort")))
+	// //systray.ShowAppWindow("data:text/html," + pageContent)
+	systray.ShowAppWindow("http://" + viper.GetString("activeHost") + ":" + viper.GetString("activePort") + "/info?secret=" + viper.GetString("serverSecret"))
 }
 
 func (instanceManager *ActionPadInstanceManager) onReady() {

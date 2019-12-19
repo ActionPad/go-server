@@ -34,6 +34,10 @@ func configLoad() {
 	}
 }
 
+func configGenerateServerSecret() {
+	viper.Set("serverSecret", generateRandomStr(8))
+}
+
 func configInitialize() {
 	executablePath, err := getExecPath()
 	if err != nil {
@@ -44,6 +48,10 @@ func configInitialize() {
 	createFileIfNotExists(path + "/" + filename)
 
 	configLoad()
+
+	if !viper.IsSet("serverSecret") {
+		configGenerateServerSecret()
+	}
 
 	viper.SetDefault("port", 2960)
 	viper.Set("activePort", nil)
