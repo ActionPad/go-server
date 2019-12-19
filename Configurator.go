@@ -16,6 +16,8 @@ func spawnConfigurator() *os.Process {
 		log.Fatal(err)
 	}
 	cmd := exec.Command(execPath, "-configurator")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	cmd.Start()
 	proc := cmd.Process
 	fmt.Print("Configurator running on PID ")

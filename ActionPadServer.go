@@ -74,12 +74,15 @@ func main() {
 		fmt.Println("* Spawning Server Engine")
 		fmt.Println(execPath)
 		cmd := exec.Command(execPath, "-engine")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 		cmd.Start()
 		instanceManager.engine = cmd.Process
 		fmt.Print("Engine running on PID ")
 		fmt.Println(instanceManager.engine.Pid)
 
 		fmt.Println("* Spawning server UI")
+
 		instanceManager.runInterface()
 	}
 }

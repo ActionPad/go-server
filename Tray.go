@@ -2,14 +2,21 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 
 	"github.com/getlantern/systray"
 	"github.com/getlantern/systray/example/icon"
+	"github.com/spf13/viper"
 )
 
 func (instanceManager *ActionPadInstanceManager) runInterface() {
-	systray.RunWithAppWindow("ActionPad Server", 800, 600, instanceManager.onReady, instanceManager.onExit)
+	systray.RunWithAppWindow("ActionPad Server", 600, 800, instanceManager.onReady, instanceManager.onExit)
+}
+
+func (instanceManager *ActionPadInstanceManager) showQRWindow() {
+	pageContent := url.PathEscape(assembleQRPage(viper.GetString("activeHost"), viper.GetInt("activePort")))
+	systray.ShowAppWindow("data:text/html," + pageContent)
 }
 
 func (instanceManager *ActionPadInstanceManager) onReady() {
@@ -19,12 +26,14 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 	mConnect := systray.AddMenuItem("Connect Devices", "Connect Devices")
 	mQuit := systray.AddMenuItem("Quit", "Quit")
 
-	systray.ShowAppWindow("https://actionpad.co/p/hoto")
+	configLoad()
+
+	instanceManager.showQRWindow()
 
 	go func() {
 		for true {
 			<-mConnect.ClickedCh
-			systray.ShowAppWindow("https://actionpad.co")
+			instanceManager.showQRWindow()
 		}
 	}()
 

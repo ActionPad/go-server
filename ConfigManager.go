@@ -18,22 +18,32 @@ func createFileIfNotExists(path string) error {
 	return nil
 }
 
+func configLoad() {
+	executablePath, err := getExecPath()
+	if err != nil {
+		log.Fatal(err)
+	}
+	path := filepath.Dir(executablePath)
+	filename := "ActionPadConfig.yml"
+
+	viper.AddConfigPath(path)
+	viper.SetConfigName(filename)
+	err = viper.ReadInConfig()
+	if err != nil { // Handle errors reading the config file
+		log.Fatal("Fatal error config file: %s \n", err)
+	}
+}
+
 func configInitialize() {
 	executablePath, err := getExecPath()
 	if err != nil {
 		log.Fatal(err)
 	}
 	path := filepath.Dir(executablePath)
-	filename := "ActionPadConfig.json"
+	filename := "ActionPadConfig.yml"
 	createFileIfNotExists(path + "/" + filename)
 
-	viper.AddConfigPath(path)
-	viper.SetConfigName(filename)
-
-	err = viper.ReadInConfig()
-	if err != nil { // Handle errors reading the config file
-		log.Fatal("Fatal error config file: %s \n", err)
-	}
+	configLoad()
 
 	viper.SetDefault("port", 2960)
 	viper.Set("activePort", nil)

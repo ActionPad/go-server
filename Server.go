@@ -350,6 +350,8 @@ func (server Server) run(port int, host string) error {
 	router.HandleFunc("/session/{uuid}/{sessionId}", server.sessionStatusHandler).Methods("GET")
 	router.HandleFunc("/session/{uuid}/{sessionId}", server.stopSessionHandler).Methods("DELETE")
 
+	setActiveServer(host, port)
+
 	err := server.httpServer.ListenAndServe()
 	if err != nil {
 		return err
