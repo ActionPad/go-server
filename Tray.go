@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/getlantern/systray"
 	"github.com/getlantern/systray/example/icon"
 )
@@ -42,6 +45,16 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 
 func (instanceManager *ActionPadInstanceManager) onExit() {
 	// clean up here
-	instanceManager.configurator.Kill()
-	instanceManager.engine.Kill()
+	if instanceManager.configurator != nil {
+		fmt.Print("Killing configurator on PID ")
+		fmt.Println(instanceManager.configurator.Pid)
+		instanceManager.configurator.Kill()
+	}
+	if instanceManager.engine != nil {
+		fmt.Print("Killing engine on PID ")
+		fmt.Println(instanceManager.engine.Pid)
+		instanceManager.engine.Kill()
+	}
+
+	os.Exit(0)
 }

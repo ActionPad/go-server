@@ -18,6 +18,8 @@ func launchEngine(host string, port int) {
 
 	server := Server{}
 
+	configInitialize()
+
 	if len(host) > 0 {
 		err := server.run(port, host)
 		if err != nil {
@@ -53,8 +55,6 @@ func main() {
 	// 	fmt.Println("Error opening UI process.")
 	// 	os.Exit(1)
 	// }
-
-	configInitialize()
 
 	if *engine {
 		launchEngine(*ip, *port)

@@ -24,15 +24,31 @@ func configInitialize() {
 		log.Fatal(err)
 	}
 	path := filepath.Dir(executablePath)
-	createFileIfNotExists(path + "/ActionPadConfig.json")
+	filename := "ActionPadConfig.json"
+	createFileIfNotExists(path + "/" + filename)
+
+	viper.AddConfigPath(path)
+	viper.SetConfigName(filename)
+
+	err = viper.ReadInConfig()
+	if err != nil { // Handle errors reading the config file
+		log.Fatal("Fatal error config file: %s \n", err)
+	}
+
+	viper.SetDefault("port", 2960)
+	viper.Set("activePort", nil)
+	viper.Set("activeHost", nil)
+	configSave()
 }
 
-func configGetValue(key string) {
-
+func setActiveServer(host string, port int) {
+	viper.Set("activePort", port)
+	viper.Set("activeHost", host)
+	configSave()
 }
 
-func configPutValue(key string) {
-	viper.SafeWriteConfig()
+func configSave() {
+	viper.WriteConfig()
 }
 
 func watchConfig(run func(e fsnotify.Event)) {
