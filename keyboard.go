@@ -83,6 +83,8 @@ func convertShortPanelKeyStr(key string) string {
 		}
 	case "del":
 		return "delete"
+	case "esc":
+		return "escape"
 	case "ins":
 		return "insert"
 	case "caps":

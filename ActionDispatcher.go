@@ -10,6 +10,7 @@ type Action struct {
 }
 
 func (action Action) dispatch() error {
+
 	switch action.Type {
 	case "keyboard":
 		keyPressSequence(action.Commands)

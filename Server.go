@@ -317,7 +317,10 @@ func (server Server) stopSessionHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (server Server) run(port int, host string) error {
-	if port < 0 || port > 65535 {
+	if port == 0 {
+		port = 2960 // default port
+	}
+	if port <= 0 || port > 65535 {
 		return errors.New("Provided port is out of range. Server offline.")
 	}
 	fmt.Printf("Attempting to run server on: %s:%d\n", host, port)

@@ -1,23 +1,24 @@
 package main
 
 import (
-	"time"
-	"github.com/go-vgo/robotgo"
+	"fmt"
 	"strconv"
 	"strings"
-	"fmt"
+	"time"
+
+	"github.com/go-vgo/robotgo"
 )
 
 type InputRequest struct {
-	UUID		string	`json:"uuid"`
-	InputAction	Action	`json:"inputAction"`
+	UUID        string `json:"uuid"`
+	InputAction Action `json:"inputAction"`
 }
 
 type InputDispatcher struct {
-	ExecuteTimer	*time.Timer
-	InputAction		Action
-	Sustain 		bool
-	Running			bool
+	ExecuteTimer *time.Timer
+	InputAction  Action
+	Sustain      bool
+	Running      bool
 }
 
 func (inputDispatcher *InputDispatcher) startKeyboardExecute() {
@@ -70,15 +71,14 @@ func mouseScrollInputExecute(command string) {
 		direction = "up"
 	}
 	// get magnitude from command string
-	if magnitude, err := strconv.Atoi(components[1]); err == nil && 
-	len(components) == 2 {
+	if magnitude, err := strconv.Atoi(components[1]); err == nil &&
+		len(components) == 2 {
 		robotgo.ScrollMouse(magnitude, direction)
 		robotgo.MilliSleep(100)
 	} else {
 		fmt.Printf("Command <%s> not formatted properly.\n", command)
 	}
 
-	
 }
 
 func mousePointerInputExecute(command string) {
@@ -97,14 +97,13 @@ func mousePointerInputExecute(command string) {
 	pos.X, pos.Y = robotgo.GetMousePos()
 
 	if direction == "up" || direction == "down" {
-		robotgo.MoveMouse(pos.X, pos.Y + magnitude)
+		robotgo.MoveMouse(pos.X, pos.Y+magnitude)
 	} else {
-		robotgo.MoveMouse(pos.X + magnitude, pos.Y)
+		robotgo.MoveMouse(pos.X+magnitude, pos.Y)
 	}
 
 	robotgo.MilliSleep(10)
 }
-
 
 func (inputDispatcher *InputDispatcher) inputTimeout() {
 	if inputDispatcher.Sustain {
@@ -139,7 +138,7 @@ func (inputDispatcher *InputDispatcher) startExecute() {
 	}(inputDispatcher)
 	go func(inputDispatcher *InputDispatcher) {
 		<-inputDispatcher.ExecuteTimer.C
-			inputDispatcher.inputTimeout()
+		inputDispatcher.inputTimeout()
 	}(inputDispatcher)
 }
 
@@ -158,7 +157,7 @@ func testInputDispatcher() {
 	robotgo.Sleep(5)
 	inputDispatcher := &InputDispatcher{}
 	inputDispatcher.InputAction = Action{
-		Type: "keyboard",
+		Type:     "keyboard",
 		Commands: []string{"w", "space"}, //"rclick","pointer::down::3","pointer::left::3"},
 	}
 	inputDispatcher.startExecute()
