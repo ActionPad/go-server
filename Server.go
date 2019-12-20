@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/go-vgo/robotgo"
 	"github.com/gorilla/mux"
 	"github.com/spf13/viper"
@@ -390,6 +391,11 @@ func (server Server) run(port int, host string) error {
 	router.HandleFunc("/session/{uuid}/{sessionId}", server.stopSessionHandler).Methods("DELETE")
 
 	setActiveServer(host, port)
+
+	watchConfig(func(e fsnotify.Event) {
+		fmt.Println("Config updated")
+		configLoad()
+	})
 
 	err := server.httpServer.ListenAndServe()
 	if err != nil {

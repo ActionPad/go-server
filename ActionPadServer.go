@@ -60,7 +60,7 @@ func main() {
 		launchEngine(*ip, *port)
 	} else if *configurator {
 		fmt.Println("* Spawning configurator")
-		launchConfigurator("")
+		launchConfigurator()
 	} else {
 		fmt.Println("====== ActionPad Server ======")
 

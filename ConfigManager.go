@@ -54,10 +54,8 @@ func configInitialize() {
 	if !viper.IsSet("serverSecret") {
 		configGenerateServerSecret()
 	}
-	if !viper.IsSet("devices") {
-		viper.Set("devices", map[string]string{})
-	}
 
+	viper.SetDefault("devices", map[string]string{})
 	viper.SetDefault("port", 2960)
 	viper.SetDefault("ip", "")
 	viper.SetDefault("saveDevices", true)
@@ -83,6 +81,8 @@ func watchConfig(run func(e fsnotify.Event)) {
 }
 
 func configCheckDevice(deviceID string) bool {
+	configLoad()
+	fmt.Println("Config file used", viper.ConfigFileUsed())
 	if viper.GetBool("saveDevices") {
 		devices := viper.GetStringMap("devices")
 		fmt.Println("Check device:", strings.ToLower(deviceID), devices[deviceID], devices)
@@ -94,6 +94,7 @@ func configCheckDevice(deviceID string) bool {
 }
 
 func configSaveDevice(deviceName string, deviceID string) {
+	configLoad()
 	if viper.GetBool("saveDevices") {
 		devices := viper.GetStringMap("devices")
 		devices[deviceID] = deviceName
@@ -103,8 +104,9 @@ func configSaveDevice(deviceName string, deviceID string) {
 }
 
 func configUnsaveDevice(deviceID string) {
+	configLoad()
 	devices := viper.GetStringMap("devices")
-	delete(devices, deviceID)
+	delete(devices, strings.ToLower(deviceID))
 	viper.Set("devices", devices)
 	configSave()
 }

@@ -6,8 +6,11 @@ import (
 	"os"
 	"os/exec"
 
+	"fyne.io/fyne"
 	"fyne.io/fyne/app"
 	"fyne.io/fyne/widget"
+	"github.com/fsnotify/fsnotify"
+	"github.com/spf13/viper"
 )
 
 func spawnConfigurator() *os.Process {
@@ -25,16 +28,49 @@ func spawnConfigurator() *os.Process {
 	return proc
 }
 
-func launchConfigurator(configPath string) {
-	app := app.New()
+func renderConfigurator(w fyne.Window, app fyne.App) {
+	deviceList := widget.NewVBox()
 
-	w := app.NewWindow("Hello")
+	devices := viper.GetStringMap("devices")
+
+	fmt.Println("devices", devices)
+
+	for UUID, name := range devices {
+		fmt.Println("Add device to list ", UUID)
+		deviceRow := widget.NewHBox(
+			widget.NewLabel(name.(string)),
+			widget.NewButton("Delete", func() {
+				configUnsaveDevice(UUID)
+				renderConfigurator(w, app)
+			}),
+		)
+		deviceList.Append(deviceRow)
+	}
+
 	w.SetContent(widget.NewVBox(
-		widget.NewLabel("Hello Fyne!"),
+		widget.NewLabel("ActionPad Server"),
 		widget.NewButton("Quit", func() {
 			app.Quit()
 		}),
+		deviceList,
 	))
+
+}
+
+func launchConfigurator() {
+	configLoad()
+
+	app := app.New()
+
+	w := app.NewWindow("ActionPad Server Configurator")
+
+	renderConfigurator(w, app)
+
+	go func() {
+		watchConfig(func(e fsnotify.Event) {
+			renderConfigurator(w, app)
+		})
+	}()
 
 	fmt.Println("About to show")
 	w.ShowAndRun()
