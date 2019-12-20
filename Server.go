@@ -24,7 +24,6 @@ type Server struct {
 	sessionDevices map[string]*Device
 	sessionInputs  map[string]*InputDispatcher
 	httpServer     *http.Server
-	serverSecret   string
 }
 
 type Result struct {
@@ -86,6 +85,11 @@ func authorizeRequest(w http.ResponseWriter, clientAuth string) bool {
 	return serverAuth == clientAuth
 }
 
+func (server Server) allowDevice(device *Device) {
+	device.SessionId = generateRandomStr(16)
+	server.sessionDevices[device.SessionId] = device
+}
+
 func (server Server) authHandler(w http.ResponseWriter, r *http.Request) {
 	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
@@ -99,16 +103,22 @@ func (server Server) authHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if configCheckDevice(device.UUID) {
+		server.allowDevice(&device)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(device)
+		return
+	}
+
 	allow := robotgo.ShowAlert("ActionPad Server", "Allow "+device.Name+" to control this computer with ActionPad?", "Yes", "No")
 	robotgo.SetActive(robotgo.GetHandPid(robotgo.GetPID()))
 	if allow == 0 {
-		device.SessionId = generateRandomStr(16)
-		server.sessionDevices[device.SessionId] = &device
+		server.allowDevice(&device)
+		configSaveDevice(device.Name, device.UUID)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(device)
-		server.serverSecret = viper.GetString("serverSecret")
 	} else {
-		fmt.Println("Rejected")
+		http.Error(w, "Device request rejected.", http.StatusUnauthorized)
 		return
 	}
 }

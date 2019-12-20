@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
@@ -52,8 +54,14 @@ func configInitialize() {
 	if !viper.IsSet("serverSecret") {
 		configGenerateServerSecret()
 	}
+	if !viper.IsSet("devices") {
+		viper.Set("devices", map[string]string{})
+	}
 
 	viper.SetDefault("port", 2960)
+	viper.SetDefault("ip", "")
+	viper.SetDefault("saveDevices", true)
+
 	viper.Set("activePort", nil)
 	viper.Set("activeHost", nil)
 	configSave()
@@ -72,4 +80,31 @@ func configSave() {
 func watchConfig(run func(e fsnotify.Event)) {
 	viper.WatchConfig()
 	viper.OnConfigChange(run)
+}
+
+func configCheckDevice(deviceID string) bool {
+	if viper.GetBool("saveDevices") {
+		devices := viper.GetStringMap("devices")
+		fmt.Println("Check device:", strings.ToLower(deviceID), devices[deviceID], devices)
+		if devices[strings.ToLower(deviceID)] != nil {
+			return true
+		}
+	}
+	return false
+}
+
+func configSaveDevice(deviceName string, deviceID string) {
+	if viper.GetBool("saveDevices") {
+		devices := viper.GetStringMap("devices")
+		devices[deviceID] = deviceName
+		viper.Set("devices", devices)
+		configSave()
+	}
+}
+
+func configUnsaveDevice(deviceID string) {
+	devices := viper.GetStringMap("devices")
+	delete(devices, deviceID)
+	viper.Set("devices", devices)
+	configSave()
 }
