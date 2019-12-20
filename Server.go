@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	b64 "encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -56,13 +58,32 @@ func (server Server) runOnDeviceIP(port int) error {
 	return errors.New("Could not bind to any IP address.")
 }
 
-func authorizeRequest(w http.ResponseWriter, authCode string) bool {
+func authorizeRequest(w http.ResponseWriter, clientAuth string) bool {
 	// Computer will have an auth code later on
-	if authCode == "" {
+	if clientAuth == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return false
 	}
-	return true
+	clientComponents := strings.Split(clientAuth, ",")
+	if len(clientComponents) != 2 {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return false
+	}
+	nonce := clientComponents[0]
+
+	hashContent := nonce + "," + viper.GetString("serverSecret")
+
+	// fmt.Println("Server hash content: " + hashContent)
+
+	hash := sha256.Sum256([]byte(hashContent))
+	hashSlice := hash[:]
+	hashStr := b64.StdEncoding.EncodeToString(hashSlice)
+
+	serverAuth := nonce + "," + hashStr
+
+	// fmt.Println("Server code:", serverAuth)
+	// fmt.Println("Client code:", clientAuth)
+	return serverAuth == clientAuth
 }
 
 func (server Server) authHandler(w http.ResponseWriter, r *http.Request) {
@@ -85,7 +106,7 @@ func (server Server) authHandler(w http.ResponseWriter, r *http.Request) {
 		server.sessionDevices[device.SessionId] = &device
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(device)
-		server.serverSecret = generateRandomStr(16)
+		server.serverSecret = viper.GetString("serverSecret")
 	} else {
 		fmt.Println("Rejected")
 		return
