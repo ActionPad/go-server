@@ -60,14 +60,32 @@ func configInitialize() {
 	viper.SetDefault("ip", "")
 	viper.SetDefault("saveDevices", true)
 
-	viper.Set("activePort", nil)
-	viper.Set("activeHost", nil)
+	viper.Set("runningPort", nil)
+	viper.Set("runningHost", nil)
+	configSave()
+}
+
+func clearActiveServer() {
+	viper.Set("runningPort", nil)
+	viper.Set("runningHost", nil)
 	configSave()
 }
 
 func setActiveServer(host string, port int) {
-	viper.Set("activePort", port)
-	viper.Set("activeHost", host)
+	viper.Set("runningPort", port)
+	viper.Set("runningHost", host)
+	configSave()
+}
+
+func setDesiredServer(host string, port int) {
+	viper.Set("port", port)
+	viper.Set("ip", host)
+	configSave()
+}
+
+func clearDesiredServer() {
+	viper.Set("port", 2960)
+	viper.Set("ip", nil)
 	configSave()
 }
 

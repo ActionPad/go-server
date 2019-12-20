@@ -5,15 +5,19 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strconv"
 
 	"fyne.io/fyne"
 	"fyne.io/fyne/app"
 	"fyne.io/fyne/widget"
-	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 )
 
-func spawnConfigurator() *os.Process {
+func (instanceManager *ActionPadInstanceManager) spawnConfigurator() {
+	if instanceManager.configurator != nil {
+		return
+	}
+
 	execPath, err := getExecPath()
 	if err != nil {
 		log.Fatal(err)
@@ -22,37 +26,54 @@ func spawnConfigurator() *os.Process {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Start()
+
 	proc := cmd.Process
+
 	fmt.Print("Configurator running on PID ")
 	fmt.Println(proc.Pid)
-	return proc
+
+	instanceManager.configurator = proc
+
+	go func(instanceManager *ActionPadInstanceManager) {
+		proc.Wait()
+		fmt.Println("Configurator has exited.")
+		instanceManager.configurator = nil
+	}(instanceManager)
 }
 
 func renderConfigurator(w fyne.Window, app fyne.App) {
-	deviceList := widget.NewVBox()
+	host := viper.GetString("runningHost")
+	port := viper.GetString("runningPort")
 
-	devices := viper.GetStringMap("devices")
+	ipField := widget.NewEntry()
+	portField := widget.NewEntry()
 
-	fmt.Println("devices", devices)
-
-	for UUID, name := range devices {
-		fmt.Println("Add device to list ", UUID)
-		deviceRow := widget.NewHBox(
-			widget.NewLabel(name.(string)),
-			widget.NewButton("Delete", func() {
-				configUnsaveDevice(UUID)
-				renderConfigurator(w, app)
-			}),
-		)
-		deviceList.Append(deviceRow)
-	}
+	ipField.SetText(host)
+	portField.SetText(port)
 
 	w.SetContent(widget.NewVBox(
-		widget.NewLabel("ActionPad Server"),
-		widget.NewButton("Quit", func() {
-			app.Quit()
+		widget.NewLabel("IP"),
+		ipField,
+		widget.NewLabel("Port"),
+		portField,
+		widget.NewButton("Save", func() {
+			portVal, err := strconv.Atoi(portField.Text)
+			if err != nil {
+				fmt.Println("Error converting", portField.Text)
+				portVal = 2960
+				portField.SetText("2960")
+			}
+			setDesiredServer(ipField.Text, portVal)
+			fmt.Println("Saved settings")
 		}),
-		deviceList,
+		widget.NewButton("Set to default", func() {
+			clearDesiredServer()
+			ipField.SetText("")
+			portField.SetText("2960")
+			fmt.Println("Set to default")
+		}),
+		widget.NewLabel("Once the settings are saved, click Restart in the ActionPad system tray menu."),
+		widget.NewLabel("For more advanced settings, edit the config file manually."),
 	))
 
 }
@@ -62,16 +83,12 @@ func launchConfigurator() {
 
 	app := app.New()
 
-	w := app.NewWindow("ActionPad Server Configurator")
+	w := app.NewWindow("ActionPad Configuration File Editor")
 
 	renderConfigurator(w, app)
 
-	go func() {
-		watchConfig(func(e fsnotify.Event) {
-			renderConfigurator(w, app)
-		})
-	}()
+	w.Resize(fyne.Size{300, 200})
+	w.SetFixedSize(true)
 
-	fmt.Println("About to show")
 	w.ShowAndRun()
 }

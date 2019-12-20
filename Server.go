@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"strconv"
@@ -24,6 +25,7 @@ type Server struct {
 	devices        []*Device
 	sessionDevices map[string]*Device
 	sessionInputs  map[string]*InputDispatcher
+	sessionNonces  map[string]bool
 	httpServer     *http.Server
 }
 
@@ -37,11 +39,6 @@ func (server Server) runOnDeviceIP(port int) error {
 		return err
 	}
 	ip := ""
-
-	server.sessionDevices = make(map[string]*Device)
-	server.sessionInputs = make(map[string]*InputDispatcher)
-
-	server.port = port
 
 	for _, address := range addrs {
 		// check the address type and if it is not a loopback the display it
@@ -58,7 +55,7 @@ func (server Server) runOnDeviceIP(port int) error {
 	return errors.New("Could not bind to any IP address.")
 }
 
-func authorizeRequest(w http.ResponseWriter, clientAuth string) bool {
+func (server Server) authorizeRequest(w http.ResponseWriter, clientAuth string) bool {
 	// Computer will have an auth code later on
 	if clientAuth == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -70,6 +67,12 @@ func authorizeRequest(w http.ResponseWriter, clientAuth string) bool {
 		return false
 	}
 	nonce := clientComponents[0]
+	if server.sessionNonces[nonce] == true {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return false
+	}
+
+	server.sessionNonces[nonce] = true
 
 	hashContent := nonce + "," + viper.GetString("serverSecret")
 
@@ -92,7 +95,7 @@ func (server Server) allowDevice(device *Device) {
 }
 
 func (server Server) authHandler(w http.ResponseWriter, r *http.Request) {
-	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
+	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
 		return
 	}
@@ -130,13 +133,12 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 
 func infoHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
-	pageContent := assembleQRPage(viper.GetString("activeHost"), viper.GetInt("activePort"), viper.GetString("serverSecret"))
+	pageContent := assembleQRPage(viper.GetString("runningHost"), viper.GetInt("runningPort"), viper.GetString("serverSecret"))
 	fmt.Fprintf(w, pageContent)
 }
 
 func (server Server) startInputHandler(w http.ResponseWriter, r *http.Request) {
-	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
-		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
 
@@ -168,8 +170,7 @@ func (server Server) startInputHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server Server) sustainInputHandler(w http.ResponseWriter, r *http.Request) {
-	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
-		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
 
@@ -197,8 +198,7 @@ func (server Server) sustainInputHandler(w http.ResponseWriter, r *http.Request)
 }
 
 func (server Server) stopInputHandler(w http.ResponseWriter, r *http.Request) {
-	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
-		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
 
@@ -230,8 +230,7 @@ func (server Server) stopInputHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server Server) browseFileHandler(w http.ResponseWriter, r *http.Request) {
-	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
-		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
 
@@ -259,8 +258,7 @@ func (server Server) browseFileHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server Server) mousePosHandler(w http.ResponseWriter, r *http.Request) {
-	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
-		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
 
@@ -282,8 +280,7 @@ func (server Server) mousePosHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server Server) actionHandler(w http.ResponseWriter, r *http.Request) {
-	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
-		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
 
@@ -314,8 +311,7 @@ func (server Server) actionHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server Server) sessionStatusHandler(w http.ResponseWriter, r *http.Request) {
-	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
-		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
 
@@ -334,8 +330,7 @@ func (server Server) sessionStatusHandler(w http.ResponseWriter, r *http.Request
 }
 
 func (server Server) stopSessionHandler(w http.ResponseWriter, r *http.Request) {
-	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
-		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
 
@@ -353,6 +348,11 @@ func (server Server) stopSessionHandler(w http.ResponseWriter, r *http.Request) 
 	} else {
 		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
 	}
+}
+
+func (server Server) notFoundHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprintf(w, "<h1>Error error errrr</h1>")
 }
 
 func (server Server) run(port int, host string) error {
@@ -374,6 +374,10 @@ func (server Server) run(port int, host string) error {
 		ReadTimeout:  60 * time.Second,
 	}
 
+	server.sessionDevices = make(map[string]*Device)
+	server.sessionInputs = make(map[string]*InputDispatcher)
+	server.sessionNonces = make(map[string]bool)
+
 	server.port = port
 	server.host = host
 
@@ -390,6 +394,8 @@ func (server Server) run(port int, host string) error {
 	router.HandleFunc("/session/{uuid}/{sessionId}", server.sessionStatusHandler).Methods("GET")
 	router.HandleFunc("/session/{uuid}/{sessionId}", server.stopSessionHandler).Methods("DELETE")
 
+	router.NotFoundHandler = router.NewRoute().HandlerFunc(server.notFoundHandler).GetHandler()
+
 	setActiveServer(host, port)
 
 	watchConfig(func(e fsnotify.Event) {
@@ -399,6 +405,7 @@ func (server Server) run(port int, host string) error {
 
 	err := server.httpServer.ListenAndServe()
 	if err != nil {
+		log.Fatal(err)
 		return err
 	}
 
