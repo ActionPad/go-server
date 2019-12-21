@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"strconv"
@@ -52,6 +51,7 @@ func (server Server) runOnDeviceIP(port int) error {
 			}
 		}
 	}
+
 	return errors.New("Could not bind to any IP address.")
 }
 
@@ -396,16 +396,17 @@ func (server Server) run(port int, host string) error {
 
 	router.NotFoundHandler = router.NewRoute().HandlerFunc(server.notFoundHandler).GetHandler()
 
-	setActiveServer(host, port)
-
 	watchConfig(func(e fsnotify.Event) {
-		fmt.Println("Config updated")
 		configLoad()
 	})
 
+	setActiveServer(host, port)
+
 	err := server.httpServer.ListenAndServe()
+
+	robotgo.ShowAlert("ActionPad Server", "Could not start server on specified IP address/port. You can try to fix this by changing the configured IP or port on which ActionPad server runs in the ActionPad menu in the system tray.", "Ok")
+
 	if err != nil {
-		log.Fatal(err)
 		return err
 	}
 

@@ -24,6 +24,11 @@ deps:
 		$(GOGET) github.com/go-vgo/robotgo
 		$(GOGET) github.com/skratchdot/open-golang/open
 		$(GOGET) github.com/sqweek/dialog
+		$(GOGET) fyne.io/fyne/
+		$(GOGET) github.com/getlantern/systray
+		$(GOGET) github.com/skip2/go-qrcode
+		$(GOGET) github.com/spf13/viper
+		$(GOGET) github.com/akavel/rsrc
 
 win-exe:
 	$(GOBUILD) -o $(BINARY_NAME).exe -v
@@ -35,3 +40,6 @@ build-win32:
 		CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BINARY_UNIX) -v
 other-win:
 		GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ $(GOBUILD) -x -o $(BINARY_NAME)
+
+win-manifest:
+	rsrc -manifest ActionPadServer.manifest -arch amd64 -o rsrc.syso

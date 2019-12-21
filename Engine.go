@@ -66,7 +66,9 @@ func (instanceManager *ActionPadInstanceManager) spawnEngine() {
 	go func(instanceManager *ActionPadInstanceManager) {
 		proc.Wait()
 		fmt.Println("Engine has exited.")
-		instanceManager.engine = nil
+		if instanceManager.engine.Pid == proc.Pid {
+			instanceManager.engine = nil
+		}
 		instanceManager.statusMessage = "Server NOT running."
 	}(instanceManager)
 }

@@ -3,11 +3,13 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/getlantern/systray"
 	"github.com/getlantern/systray/example/icon"
 	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/viper"
+	"github.com/fsnotify/fsnotify"
 )
 
 func (instanceManager *ActionPadInstanceManager) runInterface() {
@@ -17,10 +19,13 @@ func (instanceManager *ActionPadInstanceManager) runInterface() {
 func (instanceManager *ActionPadInstanceManager) showQRWindow() {
 	// pageContent := url.PathEscape(assembleQRPage(viper.GetString("runningHost"), viper.GetInt("runningPort")))
 	// //systray.ShowAppWindow("data:text/html," + pageContent)
+	fmt.Println("Opening address","http://" + viper.GetString("runningHost") + ":" + viper.GetString("runningPort") + "/info?secret=" + viper.GetString("serverSecret"))
 	systray.ShowAppWindow("http://" + viper.GetString("runningHost") + ":" + viper.GetString("runningPort") + "/info?secret=" + viper.GetString("serverSecret"))
 }
 
 func (instanceManager *ActionPadInstanceManager) onReady() {
+	time.Sleep(2 * time.Second)
+
 	systray.SetIcon(icon.Data)
 	systray.SetTooltip("ActionPad Server")
 	mTitle := systray.AddMenuItem("ActionPad Server 2.0 (by Andrew Arpasi)", "ActionPad Server 2.0")
@@ -41,7 +46,9 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 
 	instanceManager.showQRWindow()
 
-	viper.WatchConfig()
+	watchConfig(func(e fsnotify.Event) {
+		configLoad()
+	})
 
 	go func() {
 		for {
@@ -50,7 +57,7 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 				instanceManager.showQRWindow()
 				break
 			case <-mQuit.ClickedCh:
-				systray.Quit()
+				instanceManager.onExit()
 				return
 			case <-mSettings.ClickedCh:
 				instanceManager.spawnConfigurator()
@@ -59,10 +66,14 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 				open.Run(viper.ConfigFileUsed())
 				break
 			case <-mRestart.ClickedCh:
+				fmt.Println("Engine:", instanceManager.engine)
 				if instanceManager.engine != nil {
 					fmt.Print("Killing engine on PID ")
 					fmt.Println(instanceManager.engine.Pid)
 					instanceManager.engine.Kill()
+					instanceManager.spawnEngine()
+					mStatus.SetTitle("Status: " + instanceManager.statusMessage)
+				} else {
 					instanceManager.spawnEngine()
 					mStatus.SetTitle("Status: " + instanceManager.statusMessage)
 				}
@@ -70,6 +81,16 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 			}
 		}
 	}()
+
+	go func(instanceManager *ActionPadInstanceManager) {
+		oldStatus := instanceManager.statusMessage
+		for {
+			if oldStatus != instanceManager.statusMessage {
+				mStatus.SetTitle("Status: " + instanceManager.statusMessage)
+				oldStatus = instanceManager.statusMessage
+			} 
+		}
+	}(instanceManager)
 }
 
 func (instanceManager *ActionPadInstanceManager) onExit() {
