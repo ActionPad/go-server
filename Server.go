@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	b64 "encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,8 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/go-vgo/robotgo"
 	"github.com/gorilla/mux"
+	"github.com/spf13/viper"
 )
 
 type Server struct {
@@ -20,8 +24,8 @@ type Server struct {
 	devices        []*Device
 	sessionDevices map[string]*Device
 	sessionInputs  map[string]*InputDispatcher
+	sessionNonces  map[string]bool
 	httpServer     *http.Server
-	serverSecret   string
 }
 
 type Result struct {
@@ -35,11 +39,6 @@ func (server Server) runOnDeviceIP(port int) error {
 	}
 	ip := ""
 
-	server.sessionDevices = make(map[string]*Device)
-	server.sessionInputs = make(map[string]*InputDispatcher)
-
-	server.port = port
-
 	for _, address := range addrs {
 		// check the address type and if it is not a loopback the display it
 		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
@@ -52,20 +51,53 @@ func (server Server) runOnDeviceIP(port int) error {
 			}
 		}
 	}
+                                     
+	robotgo.ShowAlert("ActionPad Server", "Could not start server on specified IP address/port. You can try to fix this by changing the configured IP or port on which ActionPad server runs in the ActionPad menu in the system tray.", "Ok")
+
 	return errors.New("Could not bind to any IP address.")
 }
 
-func authorizeRequest(w http.ResponseWriter, authCode string) bool {
+func (server Server) authorizeRequest(w http.ResponseWriter, clientAuth string) bool {
 	// Computer will have an auth code later on
-	if authCode == "" {
+	if clientAuth == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return false
 	}
-	return true
+	clientComponents := strings.Split(clientAuth, ",")
+	if len(clientComponents) != 2 {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return false
+	}
+	nonce := clientComponents[0]
+	if server.sessionNonces[nonce] == true {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return false
+	}
+
+	server.sessionNonces[nonce] = true
+
+	hashContent := nonce + "," + viper.GetString("serverSecret")
+
+	// fmt.Println("Server hash content: " + hashContent)
+
+	hash := sha256.Sum256([]byte(hashContent))
+	hashSlice := hash[:]
+	hashStr := b64.StdEncoding.EncodeToString(hashSlice)
+
+	serverAuth := nonce + "," + hashStr
+
+	// fmt.Println("Server code:", serverAuth)
+	// fmt.Println("Client code:", clientAuth)
+	return serverAuth == clientAuth
+}
+
+func (server Server) allowDevice(device *Device) {
+	device.SessionId = generateRandomStr(16)
+	server.sessionDevices[device.SessionId] = device
 }
 
 func (server Server) authHandler(w http.ResponseWriter, r *http.Request) {
-	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
+	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
 		return
 	}
@@ -77,16 +109,22 @@ func (server Server) authHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if configCheckDevice(device.UUID) {
+		server.allowDevice(&device)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(device)
+		return
+	}
+
 	allow := robotgo.ShowAlert("ActionPad Server", "Allow "+device.Name+" to control this computer with ActionPad?", "Yes", "No")
 	robotgo.SetActive(robotgo.GetHandPid(robotgo.GetPID()))
 	if allow == 0 {
-		device.SessionId = generateRandomStr(16)
-		server.sessionDevices[device.SessionId] = &device
+		server.allowDevice(&device)
+		configSaveDevice(device.Name, device.UUID)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(device)
-		server.serverSecret = generateRandomStr(16)
 	} else {
-		fmt.Println("Rejected")
+		http.Error(w, "Device request rejected.", http.StatusUnauthorized)
 		return
 	}
 }
@@ -95,9 +133,14 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "ActionPad Server 2.0")
 }
 
+func infoHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	pageContent := assembleQRPage(viper.GetString("runningHost"), viper.GetInt("runningPort"), viper.GetString("serverSecret"))
+	fmt.Fprintf(w, pageContent)
+}
+
 func (server Server) startInputHandler(w http.ResponseWriter, r *http.Request) {
-	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
-		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
 
@@ -129,8 +172,7 @@ func (server Server) startInputHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server Server) sustainInputHandler(w http.ResponseWriter, r *http.Request) {
-	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
-		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
 
@@ -158,8 +200,7 @@ func (server Server) sustainInputHandler(w http.ResponseWriter, r *http.Request)
 }
 
 func (server Server) stopInputHandler(w http.ResponseWriter, r *http.Request) {
-	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
-		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
 
@@ -191,8 +232,7 @@ func (server Server) stopInputHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server Server) browseFileHandler(w http.ResponseWriter, r *http.Request) {
-	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
-		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
 
@@ -220,8 +260,7 @@ func (server Server) browseFileHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server Server) mousePosHandler(w http.ResponseWriter, r *http.Request) {
-	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
-		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
 
@@ -243,8 +282,7 @@ func (server Server) mousePosHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server Server) actionHandler(w http.ResponseWriter, r *http.Request) {
-	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
-		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
 
@@ -275,8 +313,7 @@ func (server Server) actionHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server Server) sessionStatusHandler(w http.ResponseWriter, r *http.Request) {
-	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
-		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
 
@@ -295,8 +332,7 @@ func (server Server) sessionStatusHandler(w http.ResponseWriter, r *http.Request
 }
 
 func (server Server) stopSessionHandler(w http.ResponseWriter, r *http.Request) {
-	if authorizeRequest(w, r.Header.Get("Authorization")) == false {
-		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
 
@@ -316,8 +352,16 @@ func (server Server) stopSessionHandler(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+func (server Server) notFoundHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprintf(w, "<h1>Error error errrr</h1>")
+}
+
 func (server Server) run(port int, host string) error {
-	if port < 0 || port > 65535 {
+	if port == 0 {
+		port = 2960 // default port
+	}
+	if port <= 0 || port > 65535 {
 		return errors.New("Provided port is out of range. Server offline.")
 	}
 	fmt.Printf("Attempting to run server on: %s:%d\n", host, port)
@@ -332,11 +376,16 @@ func (server Server) run(port int, host string) error {
 		ReadTimeout:  60 * time.Second,
 	}
 
+	server.sessionDevices = make(map[string]*Device)
+	server.sessionInputs = make(map[string]*InputDispatcher)
+	server.sessionNonces = make(map[string]bool)
+
 	server.port = port
 	server.host = host
 
 	// routes
 	router.HandleFunc("/", rootHandler).Methods("GET")
+	router.HandleFunc("/info", infoHandler).Methods("GET")
 	router.HandleFunc("/auth", server.authHandler).Methods("POST")
 	router.HandleFunc("/action/{uuid}/{sessionId}", server.actionHandler).Methods("POST")
 	router.HandleFunc("/mouse_pos/{uuid}/{sessionId}", server.mousePosHandler).Methods("GET")
@@ -347,7 +396,16 @@ func (server Server) run(port int, host string) error {
 	router.HandleFunc("/session/{uuid}/{sessionId}", server.sessionStatusHandler).Methods("GET")
 	router.HandleFunc("/session/{uuid}/{sessionId}", server.stopSessionHandler).Methods("DELETE")
 
+	router.NotFoundHandler = router.NewRoute().HandlerFunc(server.notFoundHandler).GetHandler()
+
+	watchConfig(func(e fsnotify.Event) {
+		configLoad()
+	})
+
+	setActiveServer(host, port)
+
 	err := server.httpServer.ListenAndServe()
+
 	if err != nil {
 		return err
 	}

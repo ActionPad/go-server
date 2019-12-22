@@ -1,15 +1,37 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"log"
+	"os"
 )
 
+type ActionPadInstanceManager struct {
+	configurator  *os.Process
+	engine        *os.Process
+	statusMessage string
+}
+
 func main() {
-	fmt.Println("ActionPad Server")
-	server := Server{}
-	err := server.runOnDeviceIP(2960)
-	if err != nil {
-		log.Fatal(err)
+	engine := flag.Bool("engine", false, "Start core server engine")
+	configurator := flag.Bool("configurator", false, "Start configurator UI")
+
+	flag.Parse()
+
+	if *engine {
+		launchEngine()
+	} else if *configurator {
+		fmt.Println("* Spawning configurator")
+		launchConfigurator()
+	} else {
+		fmt.Println("====== ActionPad Server ======")
+
+		instanceManager := &ActionPadInstanceManager{}
+
+		instanceManager.spawnEngine()
+
+		fmt.Println("* Spawning server UI")
+
+		instanceManager.runInterface()
 	}
 }

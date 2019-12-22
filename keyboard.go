@@ -83,6 +83,8 @@ func convertShortPanelKeyStr(key string) string {
 		}
 	case "del":
 		return "delete"
+	case "esc":
+		return "escape"
 	case "ins":
 		return "insert"
 	case "caps":
@@ -91,6 +93,8 @@ func convertShortPanelKeyStr(key string) string {
 		return "pageup"
 	case "pgdn":
 		return "pagedown"
+	case "back":
+		return "backspace"
 	}
 
 	return key

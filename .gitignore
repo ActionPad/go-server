@@ -2,3 +2,5 @@ Server
 ActionPadServer
 ActionPadServer.exe
 vendor
+ActionPadConfig.yml
+rsrc.syso
