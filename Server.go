@@ -51,6 +51,8 @@ func (server Server) runOnDeviceIP(port int) error {
 			}
 		}
 	}
+                                     
+	robotgo.ShowAlert("ActionPad Server", "Could not start server on specified IP address/port. You can try to fix this by changing the configured IP or port on which ActionPad server runs in the ActionPad menu in the system tray.", "Ok")
 
 	return errors.New("Could not bind to any IP address.")
 }
@@ -403,8 +405,6 @@ func (server Server) run(port int, host string) error {
 	setActiveServer(host, port)
 
 	err := server.httpServer.ListenAndServe()
-
-	robotgo.ShowAlert("ActionPad Server", "Could not start server on specified IP address/port. You can try to fix this by changing the configured IP or port on which ActionPad server runs in the ActionPad menu in the system tray.", "Ok")
 
 	if err != nil {
 		return err

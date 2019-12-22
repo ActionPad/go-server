@@ -57,9 +57,9 @@ func configInitialize() {
 
 	viper.SetDefault("devices", map[string]string{})
 	viper.SetDefault("port", 2960)
-	viper.SetDefault("ip", "")
 	viper.SetDefault("saveDevices", true)
 
+	viper.Set("ip", "")
 	viper.Set("runningPort", nil)
 	viper.Set("runningHost", nil)
 	configSave()

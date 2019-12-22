@@ -93,6 +93,8 @@ func convertShortPanelKeyStr(key string) string {
 		return "pageup"
 	case "pgdn":
 		return "pagedown"
+	case "back":
+		return "backspace"
 	}
 
 	return key
