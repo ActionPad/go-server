@@ -29,6 +29,9 @@ func mouseEventSequence(commands []string) {
 		if strings.Contains(command, "pointer") {
 			mousePointerParse(command)
 		}
+		if strings.Contains(command, "offset") {
+			mouseOffsetParse(command)
+		}
 	}
 }
 
@@ -57,6 +60,21 @@ func mousePointerParse(command string) {
 		fmt.Printf("Command <%s> not formatted properly.\n", command)
 		return
 	}
+	robotgo.MoveMouse(posX, posY)
+	robotgo.MilliSleep(125)
+}
+
+func mouseOffsetParse(command string) {
+	components := strings.Split(command, "::")
+	offX, err := strconv.Atoi(components[1])
+	offY, err := strconv.Atoi(components[2])
+	if err != nil || len(components) < 3 {
+		fmt.Printf("Command <%s> not formatted properly.\n", command)
+		return
+	}
+	posX, posY := robotgo.GetMousePos()
+	posX += offX
+	posY += offY
 	robotgo.MoveMouse(posX, posY)
 	robotgo.MilliSleep(125)
 }
