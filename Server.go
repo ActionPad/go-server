@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -26,6 +27,7 @@ type Server struct {
 	sessionInputs  map[string]*InputDispatcher
 	sessionNonces  map[string]bool
 	httpServer     *http.Server
+	mutex          *sync.Mutex
 }
 
 type Result struct {
@@ -51,7 +53,7 @@ func (server Server) runOnDeviceIP(port int) error {
 			}
 		}
 	}
-                                     
+
 	robotgo.ShowAlert("ActionPad Server", "Could not start server on specified IP address/port. You can try to fix this by changing the configured IP or port on which ActionPad server runs in the ActionPad menu in the system tray.", "Ok")
 
 	return errors.New("Could not bind to any IP address.")
@@ -74,7 +76,9 @@ func (server Server) authorizeRequest(w http.ResponseWriter, clientAuth string) 
 		return false
 	}
 
+	server.mutex.Lock()
 	server.sessionNonces[nonce] = true
+	server.mutex.Unlock()
 
 	hashContent := nonce + "," + viper.GetString("serverSecret")
 
@@ -93,7 +97,9 @@ func (server Server) authorizeRequest(w http.ResponseWriter, clientAuth string) 
 
 func (server Server) allowDevice(device *Device) {
 	device.SessionId = generateRandomStr(16)
+	server.mutex.Lock()
 	server.sessionDevices[device.SessionId] = device
+	server.mutex.Unlock()
 }
 
 func (server Server) authHandler(w http.ResponseWriter, r *http.Request) {
@@ -160,7 +166,9 @@ func (server Server) startInputHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if device != nil && device.UUID == uuid {
+		server.mutex.Lock()
 		server.sessionInputs[device.SessionId+"-"+input.UUID] = inputDispatcher
+		server.mutex.Unlock()
 		inputDispatcher.InputAction = input.InputAction
 		inputDispatcher.startExecute()
 
@@ -184,7 +192,9 @@ func (server Server) sustainInputHandler(w http.ResponseWriter, r *http.Request)
 	device := server.sessionDevices[sessionId]
 
 	if device != nil && device.UUID == uuid {
+		server.mutex.Lock()
 		inputDispatcher, ok := server.sessionInputs[device.SessionId+"-"+inputId]
+		server.mutex.Unlock()
 		if !ok {
 			http.Error(w, "Invalid input ID.", http.StatusBadRequest)
 			return
@@ -213,8 +223,9 @@ func (server Server) stopInputHandler(w http.ResponseWriter, r *http.Request) {
 
 	if device != nil && device.UUID == uuid {
 		inputDispatcherId := device.SessionId + "-" + inputId
-
+		server.mutex.Lock()
 		inputDispatcher, ok := server.sessionInputs[inputDispatcherId]
+		server.mutex.Unlock()
 		if !ok {
 			http.Error(w, "Invalid input ID.", http.StatusBadRequest)
 			return
@@ -375,6 +386,8 @@ func (server Server) run(port int, host string) error {
 		WriteTimeout: 60 * time.Second,
 		ReadTimeout:  60 * time.Second,
 	}
+
+	server.mutex = &sync.Mutex{}
 
 	server.sessionDevices = make(map[string]*Device)
 	server.sessionInputs = make(map[string]*InputDispatcher)
