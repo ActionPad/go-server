@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/go-vgo/robotgo"
+	"github.com/spf13/viper"
 )
 
 type MousePos struct {
@@ -17,11 +18,11 @@ func mouseEventSequence(commands []string) {
 	for _, command := range commands {
 		if command == "lclick" {
 			robotgo.MouseClick("left")
-			robotgo.MilliSleep(125)
+			robotgo.MilliSleep(viper.GetInt("mouseDelay"))
 		}
 		if command == "rclick" {
 			robotgo.MouseClick("right")
-			robotgo.MilliSleep(125)
+			robotgo.MilliSleep(viper.GetInt("mouseDelay"))
 		}
 		if strings.Contains(command, "scroll") {
 			mouseScrollParse(command)
@@ -46,7 +47,7 @@ func mouseScrollParse(command string) {
 	if magnitude, err := strconv.Atoi(components[1]); err == nil &&
 		len(components) == 2 {
 		robotgo.ScrollMouse(magnitude, direction)
-		robotgo.MilliSleep(125)
+		robotgo.MilliSleep(viper.GetInt("mouseDelay"))
 	} else {
 		fmt.Printf("Command <%s> not formatted properly.\n", command)
 	}
@@ -61,7 +62,7 @@ func mousePointerParse(command string) {
 		return
 	}
 	robotgo.MoveMouse(posX, posY)
-	robotgo.MilliSleep(125)
+	robotgo.MilliSleep(viper.GetInt("mouseDelay"))
 }
 
 func mouseOffsetParse(command string) {
@@ -76,7 +77,7 @@ func mouseOffsetParse(command string) {
 	posX += offX
 	posY += offY
 	robotgo.MoveMouse(posX, posY)
-	robotgo.MilliSleep(125)
+	robotgo.MilliSleep(viper.GetInt("mouseDelay"))
 }
 
 func mouseHold(button string) {
@@ -85,5 +86,5 @@ func mouseHold(button string) {
 
 func mouseRelease(button string) {
 	robotgo.MouseToggle("up", button)
-	robotgo.MilliSleep(125)
+	robotgo.MilliSleep(viper.GetInt("mouseDelay"))
 }

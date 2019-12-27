@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-vgo/robotgo"
+	"github.com/spf13/viper"
 )
 
 type InputRequest struct {
@@ -19,6 +20,7 @@ type InputDispatcher struct {
 	InputAction  Action
 	Sustain      bool
 	Running      bool
+	MouseActive  map[string]bool
 }
 
 func (inputDispatcher *InputDispatcher) startKeyboardExecute() {
@@ -38,10 +40,18 @@ func (inputDispatcher *InputDispatcher) stopKeyboardExecute() {
 func (inputDispatcher *InputDispatcher) startMouseExecute() {
 	for _, command := range inputDispatcher.InputAction.Commands {
 		if command == "lclick" {
-			mouseHold("left")
+			if inputDispatcher.MouseActive["left"] != true {
+				mouseHold("left")
+				inputDispatcher.MouseActive["left"] = true
+				robotgo.MilliSleep(viper.GetInt("mouseDelay"))
+			}
 		}
 		if command == "rclick" {
-			mouseHold("right")
+			if inputDispatcher.MouseActive["right"] != true {
+				mouseHold("right")
+				inputDispatcher.MouseActive["right"] = true
+				robotgo.MilliSleep(viper.GetInt("mouseDelay"))
+			}
 		}
 		if strings.Contains(command, "scroll") {
 			mouseScrollInputExecute(command)
@@ -56,9 +66,11 @@ func (inputDispatcher *InputDispatcher) stopMouseExecute() {
 	for _, command := range inputDispatcher.InputAction.Commands {
 		if command == "lclick" {
 			mouseRelease("left")
+			inputDispatcher.MouseActive["left"] = false
 		}
 		if command == "rclick" {
 			mouseRelease("right")
+			inputDispatcher.MouseActive["right"] = false
 		}
 	}
 }
@@ -74,7 +86,7 @@ func mouseScrollInputExecute(command string) {
 	if magnitude, err := strconv.Atoi(components[1]); err == nil &&
 		len(components) == 2 {
 		robotgo.ScrollMouse(magnitude, direction)
-		robotgo.MilliSleep(100)
+		robotgo.MilliSleep(viper.GetInt("mouseDelay"))
 	} else {
 		fmt.Printf("Command <%s> not formatted properly.\n", command)
 	}
@@ -102,7 +114,7 @@ func mousePointerInputExecute(command string) {
 		robotgo.MoveMouse(pos.X+magnitude, pos.Y)
 	}
 
-	robotgo.MilliSleep(10)
+	robotgo.MilliSleep(viper.GetInt("mouseDelay"))
 }
 
 func (inputDispatcher *InputDispatcher) inputTimeout() {
@@ -127,6 +139,7 @@ func (inputDispatcher *InputDispatcher) startExecute() {
 	inputDispatcher.ExecuteTimer = time.NewTimer(2 * time.Second) // 3 second timeout
 	inputDispatcher.Sustain = false
 	inputDispatcher.Running = true
+	inputDispatcher.MouseActive = make(map[string]bool)
 	go func(inputDispatcher *InputDispatcher) {
 		for inputDispatcher.Running {
 			if inputDispatcher.InputAction.Type == "keyboard" {

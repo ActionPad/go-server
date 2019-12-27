@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/go-vgo/robotgo"
+	"github.com/spf13/viper"
 )
 
 func keyIsModifier(key string) bool {
@@ -55,17 +56,18 @@ func keyPress(key string, modifiers []string) {
 	} else {
 		robotgo.KeyTap(key)
 	}
-	robotgo.MilliSleep(125)
+	robotgo.MilliSleep(viper.GetInt("keyDelay"))
 	// mutex.Unlock()
 }
 
 func keyHold(key string) {
 	robotgo.KeyToggle(key, "down")
+	robotgo.MilliSleep(viper.GetInt("keyDelay"))
 }
 
 func keyRelease(key string) {
 	robotgo.KeyToggle(key, "up")
-	robotgo.MilliSleep(125)
+	robotgo.MilliSleep(viper.GetInt("keyDelay"))
 }
 
 func typeString(str string, cpm float64) {

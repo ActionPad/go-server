@@ -58,6 +58,8 @@ func configInitialize() {
 	viper.SetDefault("devices", map[string]string{})
 	viper.SetDefault("port", 2960)
 	viper.SetDefault("saveDevices", true)
+	viper.SetDefault("keyDelay", 100)
+	viper.SetDefault("mouseDelay", 25)
 
 	viper.Set("ip", "")
 	viper.Set("runningPort", nil)
