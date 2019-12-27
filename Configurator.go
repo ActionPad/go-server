@@ -83,11 +83,12 @@ func launchConfigurator() {
 
 	app := app.New()
 
-	w := app.NewWindow("ActionPad Configuration File Editor")
+	w := app.NewWindow("ActionPad Server - Set IP/Port")
 
 	renderConfigurator(w, app)
 
-	w.Resize(fyne.Size{300, 200})
+	os.Setenv("FYNE_SCALE", "1")
+
 	w.SetFixedSize(true)
 
 	w.ShowAndRun()

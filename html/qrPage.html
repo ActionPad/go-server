@@ -21,6 +21,10 @@
             font-family: Helvetica, Arial, sans-serif;
             text-align: center;
         }
+        body {
+            background: #1C1C22; 
+            color: #FFF;
+        }
         </style>
 </head>
 
@@ -55,7 +59,7 @@
 
 <script>
 function parse_query_string(e){for(var n=e.split("&"),o={},r=0;r<n.length;r++){var t=n[r].split("="),s=decodeURIComponent(t[0]),d=decodeURIComponent(t[1]);if(void 0===o[s])o[s]=decodeURIComponent(d);else if("string"==typeof o[s]){var p=[o[s],decodeURIComponent(d)];o[s]=p}else o[s].push(decodeURIComponent(d))}return o}var parsed_qs=parse_query_string(window.location.href);
-document.querySelector('#secret').textContent = 'Secret: ' + parsed_qs[Object.keys(parsed_qs)[0]]
+document.querySelector('#secret').textContent = 'Server Code: ' + parsed_qs[Object.keys(parsed_qs)[0]]
 </script>
 
 </body>
