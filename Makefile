@@ -42,4 +42,4 @@ other-win:
 		GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ $(GOBUILD) -x -o $(BINARY_NAME)
 
 win-manifest:
-	rsrc -manifest ActionPadServer.manifest -arch amd64 -o rsrc.syso
+	rsrc -manifest ActionPadServer.manifest -arch amd64 -ico icons/icon.ico -o rsrc.syso
