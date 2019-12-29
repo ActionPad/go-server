@@ -55,8 +55,6 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 		configLoad()
 	})
 
-	willQuit := false
-
 	go func() {
 		for {
 			select {
@@ -64,7 +62,6 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 				instanceManager.showQRWindow()
 				break
 			case <-mQuit.ClickedCh:
-				willQuit = true
 				instanceManager.onExit()
 				return
 			case <-mSettings.ClickedCh:
@@ -93,9 +90,6 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 	go func(instanceManager *ActionPadInstanceManager) {
 		oldStatus := instanceManager.statusMessage
 		for {
-			if willQuit {
-				break
-			}
 			if oldStatus != instanceManager.statusMessage {
 				mStatus.SetTitle("Status: " + instanceManager.statusMessage)
 				oldStatus = instanceManager.statusMessage
