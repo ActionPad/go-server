@@ -84,16 +84,12 @@ func (server Server) authorizeRequest(w http.ResponseWriter, clientAuth string) 
 
 	hashContent := nonce + "," + viper.GetString("serverSecret")
 
-	// fmt.Println("Server hash content: " + hashContent)
-
 	hash := sha256.Sum256([]byte(hashContent))
 	hashSlice := hash[:]
 	hashStr := b64.StdEncoding.EncodeToString(hashSlice)
 
 	serverAuth := nonce + "," + hashStr
 
-	// fmt.Println("Server code:", serverAuth)
-	// fmt.Println("Client code:", clientAuth)
 	return serverAuth == clientAuth
 }
 

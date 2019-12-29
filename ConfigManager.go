@@ -105,7 +105,7 @@ func configCheckDevice(deviceID string) bool {
 	fmt.Println("Config file used", viper.ConfigFileUsed())
 	if viper.GetBool("saveDevices") {
 		devices := viper.GetStringMap("devices")
-		fmt.Println("Check device:", strings.ToLower(deviceID), devices[deviceID], devices)
+		// fmt.Println("Check device:", strings.ToLower(deviceID), devices[deviceID], devices)
 		if devices[strings.ToLower(deviceID)] != nil {
 			return true
 		}
