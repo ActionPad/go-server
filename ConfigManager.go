@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
+	"runtime"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
@@ -21,16 +21,12 @@ func createFileIfNotExists(path string) error {
 }
 
 func configLoad() {
-	executablePath, err := getExecPath()
-	if err != nil {
-		log.Fatal(err)
-	}
-	path := filepath.Dir(executablePath)
+	path := configGetPath()
 	filename := "ActionPadConfig.yml"
 
 	viper.AddConfigPath(path)
 	viper.SetConfigName(filename)
-	err = viper.ReadInConfig()
+	err := viper.ReadInConfig()
 	if err != nil { // Handle errors reading the config file
 		log.Fatal("Fatal error config file: %s \n", err)
 	}
@@ -40,12 +36,23 @@ func configGenerateServerSecret() {
 	viper.Set("serverSecret", generateRandomStr(8))
 }
 
-func configInitialize() {
-	executablePath, err := getExecPath()
-	if err != nil {
-		log.Fatal(err)
+func configGetPath() string {
+	path := os.Getenv("APPDATA")
+
+	if runtime.GOOS == "darwin" {
+		path = os.Getenv("HOME") + "/Library/Application Support"
 	}
-	path := filepath.Dir(executablePath)
+
+	path += "/ActionPad"
+
+	os.MkdirAll(path, os.ModePerm)
+
+	return path
+}
+
+func configInitialize() {
+	path := configGetPath()
+
 	filename := "ActionPadConfig.yml"
 	createFileIfNotExists(path + "/" + filename)
 
