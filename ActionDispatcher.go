@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+
 	"github.com/skratchdot/open-golang/open"
 )
 
@@ -10,6 +12,9 @@ type Action struct {
 }
 
 func (action Action) dispatch() error {
+	if len(action.Commands) == 0 {
+		return errors.New("No actions specified")
+	}
 
 	switch action.Type {
 	case "keyboard":
@@ -17,6 +22,9 @@ func (action Action) dispatch() error {
 		break
 	case "mouse":
 		mouseEventSequence(action.Commands)
+		break
+	case "text":
+		typeText(action.Commands[0])
 		break
 	case "open":
 		open.Run(action.Commands[0])

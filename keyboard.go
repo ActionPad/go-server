@@ -60,6 +60,14 @@ func keyPress(key string, modifiers []string) {
 	// mutex.Unlock()
 }
 
+func typeText(text string) {
+	if len(text) == 0 {
+		return
+	}
+
+	robotgo.TypeString(text)
+}
+
 func keyHold(key string) {
 	robotgo.KeyToggle(key, "down")
 	robotgo.MilliSleep(viper.GetInt("keyDelay"))
@@ -68,10 +76,6 @@ func keyHold(key string) {
 func keyRelease(key string) {
 	robotgo.KeyToggle(key, "up")
 	robotgo.MilliSleep(viper.GetInt("keyDelay"))
-}
-
-func typeString(str string, cpm float64) {
-	robotgo.TypeStr(str, cpm)
 }
 
 // Support shortened panel key strings
