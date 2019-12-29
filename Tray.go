@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/getlantern/systray"
-	"github.com/getlantern/systray/example/icon"
 	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/viper"
 	"github.com/fsnotify/fsnotify"
@@ -26,7 +25,7 @@ func (instanceManager *ActionPadInstanceManager) showQRWindow() {
 func (instanceManager *ActionPadInstanceManager) onReady() {
 	time.Sleep(2 * time.Second)
 
-	systray.SetIcon(icon.Data)
+	systray.SetIcon(WinIcon)
 	systray.SetTooltip("ActionPad Server")
 	mTitle := systray.AddMenuItem("ActionPad Server 2.0 (by Andrew Arpasi)", "ActionPad Server 2.0")
 	mStatus := systray.AddMenuItem("Status: ", "Status")
