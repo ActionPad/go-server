@@ -53,6 +53,7 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 
 	watchConfig(func(e fsnotify.Event) {
 		configLoad()
+		mStatus.SetTitle("Status: " + instanceManager.statusMessage)
 	})
 
 	go func() {
@@ -86,16 +87,6 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 			}
 		}
 	}()
-
-	go func(instanceManager *ActionPadInstanceManager) {
-		oldStatus := instanceManager.statusMessage
-		for {
-			if oldStatus != instanceManager.statusMessage {
-				mStatus.SetTitle("Status: " + instanceManager.statusMessage)
-				oldStatus = instanceManager.statusMessage
-			}
-		}
-	}(instanceManager)
 }
 
 func (instanceManager *ActionPadInstanceManager) onExit() {
