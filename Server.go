@@ -71,12 +71,14 @@ func (server Server) authorizeRequest(w http.ResponseWriter, clientAuth string) 
 		return false
 	}
 	nonce := clientComponents[0]
+
+	server.mutex.Lock()
 	if server.sessionNonces[nonce] == true {
+		server.mutex.Unlock()
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return false
 	}
 
-	server.mutex.Lock()
 	server.sessionNonces[nonce] = true
 	server.mutex.Unlock()
 

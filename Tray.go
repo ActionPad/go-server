@@ -3,12 +3,13 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/getlantern/systray"
 	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/viper"
-	"github.com/fsnotify/fsnotify"
 )
 
 func (instanceManager *ActionPadInstanceManager) runInterface() {
@@ -18,14 +19,19 @@ func (instanceManager *ActionPadInstanceManager) runInterface() {
 func (instanceManager *ActionPadInstanceManager) showQRWindow() {
 	// pageContent := url.PathEscape(assembleQRPage(viper.GetString("runningHost"), viper.GetInt("runningPort")))
 	// //systray.ShowAppWindow("data:text/html," + pageContent)
-	fmt.Println("Opening address","http://" + viper.GetString("runningHost") + ":" + viper.GetString("runningPort") + "/info?secret=" + viper.GetString("serverSecret"))
+	fmt.Println("Opening address", "http://"+viper.GetString("runningHost")+":"+viper.GetString("runningPort")+"/info?secret="+viper.GetString("serverSecret"))
 	systray.ShowAppWindow("http://" + viper.GetString("runningHost") + ":" + viper.GetString("runningPort") + "/info?secret=" + viper.GetString("serverSecret"))
 }
 
 func (instanceManager *ActionPadInstanceManager) onReady() {
 	time.Sleep(2 * time.Second)
 
-	systray.SetIcon(WinIcon)
+	if runtime.GOOS == "windows" {
+		systray.SetIcon(WinIcon)
+	} else {
+		systray.SetIcon(UnixIcon)
+	}
+
 	systray.SetTooltip("ActionPad Server")
 	mTitle := systray.AddMenuItem("ActionPad Server 2.0 (by Andrew Arpasi)", "ActionPad Server 2.0")
 	mStatus := systray.AddMenuItem("Status: ", "Status")
@@ -49,6 +55,8 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 		configLoad()
 	})
 
+	willQuit := false
+
 	go func() {
 		for {
 			select {
@@ -56,6 +64,7 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 				instanceManager.showQRWindow()
 				break
 			case <-mQuit.ClickedCh:
+				willQuit = true
 				instanceManager.onExit()
 				return
 			case <-mSettings.ClickedCh:
@@ -84,10 +93,13 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 	go func(instanceManager *ActionPadInstanceManager) {
 		oldStatus := instanceManager.statusMessage
 		for {
+			if willQuit {
+				break
+			}
 			if oldStatus != instanceManager.statusMessage {
 				mStatus.SetTitle("Status: " + instanceManager.statusMessage)
 				oldStatus = instanceManager.statusMessage
-			} 
+			}
 		}
 	}(instanceManager)
 }
