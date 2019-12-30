@@ -70,6 +70,7 @@ func (instanceManager *ActionPadInstanceManager) spawnEngine() {
 			instanceManager.engine = nil
 		}
 		instanceManager.statusMessage = "Server NOT running."
+		configLoad()
 		clearActiveServer()
 	}(instanceManager)
 }
