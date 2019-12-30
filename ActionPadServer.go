@@ -12,6 +12,8 @@ type ActionPadInstanceManager struct {
 	statusMessage string
 }
 
+var CURRENT_VERSION = "2.0"
+
 func main() {
 	engine := flag.Bool("engine", false, "Start core server engine")
 	configurator := flag.Bool("configurator", false, "Start configurator UI")

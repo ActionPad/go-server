@@ -4,19 +4,21 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"runtime"
+	"strings"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 )
 
 func createFileIfNotExists(path string) error {
-	file, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0644)
-	if err != nil {
-		return err
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		file, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0644)
+		if err != nil {
+			return err
+		}
+		file.Close()
 	}
-	file.Close()
 	return nil
 }
 
@@ -45,8 +47,9 @@ func configGetPath() string {
 
 	path += "/ActionPad"
 
-	os.MkdirAll(path, os.ModePerm)
-
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		os.Mkdir(path, os.ModeDir)
+	}
 	return path
 }
 
@@ -64,9 +67,16 @@ func configInitialize() {
 
 	viper.SetDefault("devices", map[string]string{})
 	viper.SetDefault("port", 2960)
-	viper.SetDefault("saveDevices", true)
-	viper.SetDefault("keyDelay", 100)
-	viper.SetDefault("mouseDelay", 25)
+
+	if !viper.IsSet("saveDevices") {
+		viper.Set("saveDevices", true)
+	}
+	if !viper.IsSet("keyDelay") {
+		viper.Set("keyDelay", 100)
+	}
+	if !viper.IsSet("mouseDelay") {
+		viper.Set("mouseDelay", 25)
+	}
 
 	viper.Set("ip", "")
 	viper.Set("runningPort", nil)

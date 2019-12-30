@@ -41,6 +41,7 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 	mConnect := systray.AddMenuItem("Connect Devices", "Connect Devices")
 	mSettings := systray.AddMenuItem("Change IP/Port", "Server Settings")
 	mConfig := systray.AddMenuItem("Edit Server Config File", "Edit Config File")
+	mUpdate := systray.AddMenuItem("Check For Server Update", "Check For Server Update")
 	systray.AddSeparator()
 	mRestart := systray.AddMenuItem("Restart", "Restart")
 	mQuit := systray.AddMenuItem("Quit", "Quit")
@@ -69,8 +70,14 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 				instanceManager.spawnConfigurator()
 				break
 			case <-mConfig.ClickedCh:
-				open.Run(viper.ConfigFileUsed())
+				if runtime.GOOS == "darwin" {
+					open.RunWith(viper.ConfigFileUsed(), "/Applications/TextEdit.app/Contents/MacOS/TextEdit")
+				} else if runtime.GOOS == "windows" {
+					open.RunWith(viper.ConfigFileUsed(), "notepad.exe")
+				}
 				break
+			case <-mUpdate.ClickedCh:
+				open.Run("https://actionpad.co/update.html?version=" + CURRENT_VERSION)
 			case <-mRestart.ClickedCh:
 				fmt.Println("Engine:", instanceManager.engine)
 				if instanceManager.engine != nil {
