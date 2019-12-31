@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"runtime"
@@ -119,10 +118,8 @@ func watchConfig(run func(e fsnotify.Event)) {
 
 func configCheckDevice(deviceID string) bool {
 	configLoad()
-	fmt.Println("Config file used", viper.ConfigFileUsed())
 	if viper.GetBool("saveDevices") {
 		devices := viper.GetStringMap("devices")
-		// fmt.Println("Check device:", strings.ToLower(deviceID), devices[deviceID], devices)
 		if devices[strings.ToLower(deviceID)] != nil {
 			return true
 		}
