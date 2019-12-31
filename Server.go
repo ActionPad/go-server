@@ -234,7 +234,9 @@ func (server Server) stopInputHandler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, "{\"success\":true}")
 
+		server.mutex.Lock()
 		delete(server.sessionInputs, inputDispatcherId)
+		server.mutex.Unlock()
 	} else {
 		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
 	}
@@ -352,7 +354,9 @@ func (server Server) stopSessionHandler(w http.ResponseWriter, r *http.Request) 
 	device := server.sessionDevices[sessionId]
 
 	if device != nil && device.UUID == uuid {
+		server.mutex.Lock()
 		delete(server.sessionDevices, sessionId)
+		server.mutex.Unlock()
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(device)

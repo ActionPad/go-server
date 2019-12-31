@@ -70,7 +70,6 @@ func typeText(text string) {
 
 func keyHold(key string) {
 	robotgo.KeyToggle(key, "down")
-	robotgo.MilliSleep(viper.GetInt("keyDelay"))
 }
 
 func keyRelease(key string) {

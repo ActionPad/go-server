@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-vgo/robotgo"
@@ -21,12 +22,19 @@ type InputDispatcher struct {
 	Sustain      bool
 	Running      bool
 	MouseActive  map[string]bool
+	KeyActive    map[string]bool
+	mutex        *sync.Mutex
 }
 
 func (inputDispatcher *InputDispatcher) startKeyboardExecute() {
 	for _, command := range inputDispatcher.InputAction.Commands {
 		keyStr := convertShortPanelKeyStr(command)
-		keyHold(keyStr)
+		inputDispatcher.mutex.Lock()
+		if inputDispatcher.KeyActive[keyStr] != true {
+			keyHold(keyStr)
+			inputDispatcher.KeyActive[keyStr] = true
+		}
+		inputDispatcher.mutex.Unlock()
 	}
 }
 
@@ -34,23 +42,34 @@ func (inputDispatcher *InputDispatcher) stopKeyboardExecute() {
 	for _, command := range inputDispatcher.InputAction.Commands {
 		keyStr := convertShortPanelKeyStr(command)
 		keyRelease(keyStr)
+		inputDispatcher.mutex.Lock()
+		inputDispatcher.KeyActive[keyStr] = false
+		inputDispatcher.mutex.Unlock()
 	}
 }
 
 func (inputDispatcher *InputDispatcher) startMouseExecute() {
 	for _, command := range inputDispatcher.InputAction.Commands {
 		if command == "lclick" {
+			inputDispatcher.mutex.Lock()
 			if inputDispatcher.MouseActive["left"] != true {
 				mouseHold("left")
 				inputDispatcher.MouseActive["left"] = true
+				inputDispatcher.mutex.Unlock()
 				robotgo.MilliSleep(viper.GetInt("mouseDelay"))
+			} else {
+				inputDispatcher.mutex.Unlock()
 			}
 		}
 		if command == "rclick" {
+			inputDispatcher.mutex.Lock()
 			if inputDispatcher.MouseActive["right"] != true {
 				mouseHold("right")
 				inputDispatcher.MouseActive["right"] = true
+				inputDispatcher.mutex.Unlock()
 				robotgo.MilliSleep(viper.GetInt("mouseDelay"))
+			} else {
+				inputDispatcher.mutex.Unlock()
 			}
 		}
 		if strings.Contains(command, "scroll") {
@@ -66,11 +85,15 @@ func (inputDispatcher *InputDispatcher) stopMouseExecute() {
 	for _, command := range inputDispatcher.InputAction.Commands {
 		if command == "lclick" {
 			mouseRelease("left")
+			inputDispatcher.mutex.Lock()
 			inputDispatcher.MouseActive["left"] = false
+			inputDispatcher.mutex.Unlock()
 		}
 		if command == "rclick" {
 			mouseRelease("right")
+			inputDispatcher.mutex.Lock()
 			inputDispatcher.MouseActive["right"] = false
+			inputDispatcher.mutex.Unlock()
 		}
 	}
 }
@@ -140,6 +163,8 @@ func (inputDispatcher *InputDispatcher) startExecute() {
 	inputDispatcher.Sustain = false
 	inputDispatcher.Running = true
 	inputDispatcher.MouseActive = make(map[string]bool)
+	inputDispatcher.KeyActive = make(map[string]bool)
+	inputDispatcher.mutex = &sync.Mutex{}
 	go func(inputDispatcher *InputDispatcher) {
 		for inputDispatcher.Running {
 			if inputDispatcher.InputAction.Type == "keyboard" {
