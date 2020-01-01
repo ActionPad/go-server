@@ -80,6 +80,7 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 				open.Run("https://actionpad.co/update.html?version=" + CURRENT_VERSION)
 			case <-mRestart.ClickedCh:
 				fmt.Println("Engine:", instanceManager.engine)
+				clearActiveServer()
 				if instanceManager.engine != nil {
 					fmt.Print("Killing engine on PID ")
 					fmt.Println(instanceManager.engine.Pid)
@@ -90,6 +91,11 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 					instanceManager.spawnEngine()
 					mStatus.SetTitle("Status: " + instanceManager.statusMessage)
 				}
+				go func() {
+					time.Sleep(time.Second)
+					fmt.Println("Should update status:",instanceManager.statusMessage)
+					mStatus.SetTitle("Status: " + instanceManager.statusMessage)
+				}()
 				break
 			}
 		}

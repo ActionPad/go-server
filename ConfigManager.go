@@ -47,7 +47,7 @@ func configGetPath() string {
 	path += "/ActionPad"
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		os.Mkdir(path, os.ModeDir)
+		os.Mkdir(path, 0744)
 	}
 	return path
 }
@@ -84,24 +84,28 @@ func configInitialize() {
 }
 
 func clearActiveServer() {
+	configLoad()
 	viper.Set("runningPort", nil)
 	viper.Set("runningHost", nil)
 	configSave()
 }
 
 func setActiveServer(host string, port int) {
+	configLoad()
 	viper.Set("runningPort", port)
 	viper.Set("runningHost", host)
 	configSave()
 }
 
 func setDesiredServer(host string, port int) {
+	configLoad()
 	viper.Set("port", port)
 	viper.Set("ip", host)
 	configSave()
 }
 
 func clearDesiredServer() {
+	configLoad()
 	viper.Set("port", 2960)
 	viper.Set("ip", nil)
 	configSave()
