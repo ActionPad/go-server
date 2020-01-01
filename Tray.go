@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/getlantern/systray"
+	"github.com/ActionPad/systray"
 	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/viper"
 )

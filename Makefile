@@ -25,7 +25,7 @@ deps:
 		$(GOGET) github.com/skratchdot/open-golang/open
 		$(GOGET) github.com/sqweek/dialog
 		$(GOGET) fyne.io/fyne/
-		$(GOGET) github.com/getlantern/systray
+		$(GOGET) github.com/ActionPad/systray
 		$(GOGET) github.com/skip2/go-qrcode
 		$(GOGET) github.com/spf13/viper
 		$(GOGET) github.com/akavel/rsrc
