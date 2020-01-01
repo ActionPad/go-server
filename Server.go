@@ -34,12 +34,18 @@ type Result struct {
 	Data string `json:"result"`
 }
 
-func (server Server) runOnDeviceIP(port int) error {
+func (server *Server) runOnDeviceIP(port int) error {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		return err
 	}
 	ip := ""
+
+	go func() {
+		robotgo.Sleep(1)
+		fmt.Println("Config set active server: ", server.host, server.port)
+		setActiveServer(server.host, server.port)
+	}()
 
 	for _, address := range addrs {
 		// check the address type and if it is not a loopback the display it
@@ -59,7 +65,7 @@ func (server Server) runOnDeviceIP(port int) error {
 	return errors.New("Could not bind to any IP address.")
 }
 
-func (server Server) authorizeRequest(w http.ResponseWriter, clientAuth string) bool {
+func (server *Server) authorizeRequest(w http.ResponseWriter, clientAuth string) bool {
 	// Computer will have an auth code later on
 	if clientAuth == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -93,14 +99,14 @@ func (server Server) authorizeRequest(w http.ResponseWriter, clientAuth string) 
 	return serverAuth == clientAuth
 }
 
-func (server Server) allowDevice(device *Device) {
+func (server *Server) allowDevice(device *Device) {
 	device.SessionId = generateRandomStr(16)
 	server.mutex.Lock()
 	server.sessionDevices[device.SessionId] = device
 	server.mutex.Unlock()
 }
 
-func (server Server) authHandler(w http.ResponseWriter, r *http.Request) {
+func (server *Server) authHandler(w http.ResponseWriter, r *http.Request) {
 	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
 		return
@@ -143,7 +149,7 @@ func infoHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, pageContent)
 }
 
-func (server Server) startInputHandler(w http.ResponseWriter, r *http.Request) {
+func (server *Server) startInputHandler(w http.ResponseWriter, r *http.Request) {
 	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
@@ -177,7 +183,7 @@ func (server Server) startInputHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (server Server) sustainInputHandler(w http.ResponseWriter, r *http.Request) {
+func (server *Server) sustainInputHandler(w http.ResponseWriter, r *http.Request) {
 	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
@@ -207,7 +213,7 @@ func (server Server) sustainInputHandler(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-func (server Server) stopInputHandler(w http.ResponseWriter, r *http.Request) {
+func (server *Server) stopInputHandler(w http.ResponseWriter, r *http.Request) {
 	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
@@ -242,7 +248,7 @@ func (server Server) stopInputHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (server Server) browseFileHandler(w http.ResponseWriter, r *http.Request) {
+func (server *Server) browseFileHandler(w http.ResponseWriter, r *http.Request) {
 	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
@@ -270,7 +276,7 @@ func (server Server) browseFileHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (server Server) mousePosHandler(w http.ResponseWriter, r *http.Request) {
+func (server *Server) mousePosHandler(w http.ResponseWriter, r *http.Request) {
 	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
@@ -292,7 +298,7 @@ func (server Server) mousePosHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (server Server) actionHandler(w http.ResponseWriter, r *http.Request) {
+func (server *Server) actionHandler(w http.ResponseWriter, r *http.Request) {
 	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
@@ -323,7 +329,7 @@ func (server Server) actionHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (server Server) sessionStatusHandler(w http.ResponseWriter, r *http.Request) {
+func (server *Server) sessionStatusHandler(w http.ResponseWriter, r *http.Request) {
 	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
@@ -342,7 +348,7 @@ func (server Server) sessionStatusHandler(w http.ResponseWriter, r *http.Request
 	}
 }
 
-func (server Server) stopSessionHandler(w http.ResponseWriter, r *http.Request) {
+func (server *Server) stopSessionHandler(w http.ResponseWriter, r *http.Request) {
 	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		return
 	}
@@ -365,12 +371,12 @@ func (server Server) stopSessionHandler(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (server Server) notFoundHandler(w http.ResponseWriter, r *http.Request) {
+func (server *Server) notFoundHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprintf(w, "<h1>Error error errrr</h1>")
 }
 
-func (server Server) run(port int, host string) error {
+func (server *Server) run(port int, host string) error {
 	if port == 0 {
 		port = 2960 // default port
 	}
@@ -416,8 +422,6 @@ func (server Server) run(port int, host string) error {
 	watchConfig(func(e fsnotify.Event) {
 		configLoad()
 	})
-
-	setActiveServer(host, port)
 
 	err := server.httpServer.ListenAndServe()
 
