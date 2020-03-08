@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/ActionPad/systray"
+	"github.com/fsnotify/fsnotify"
 	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/viper"
 )
@@ -33,7 +33,7 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 	}
 
 	systray.SetTooltip("ActionPad Server")
-	mTitle := systray.AddMenuItem("ActionPad Server 2.0 (by Andrew Arpasi)", "ActionPad Server 2.0")
+	mTitle := systray.AddMenuItem("ActionPad Server "+CURRENT_VERSION+" (by Andrew Arpasi)", "ActionPad Server 2.0")
 	mStatus := systray.AddMenuItem("Status: ", "Status")
 	mTitle.Disable()
 	mStatus.Disable()
@@ -93,7 +93,7 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 				}
 				go func() {
 					time.Sleep(time.Second)
-					fmt.Println("Should update status:",instanceManager.statusMessage)
+					fmt.Println("Should update status:", instanceManager.statusMessage)
 					mStatus.SetTitle("Status: " + instanceManager.statusMessage)
 				}()
 				break
