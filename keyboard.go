@@ -11,7 +11,7 @@ import (
 )
 
 func keyIsModifier(key string) bool {
-	return strings.Contains(key, "ctrl") || strings.Contains(key, "cmd") || strings.Contains(key, "alt") || strings.Contains(key, "shift") || key == "super" || key == "command"
+	return strings.Contains(key, "ctrl") || strings.Contains(key, "control") || strings.Contains(key, "cmd") || strings.Contains(key, "alt") || strings.Contains(key, "shift") || key == "super" || key == "command"
 }
 
 func keyPressSequence(commands []string) {
@@ -52,7 +52,7 @@ func keyPress(key string, modifiers []string) {
 	if len(modifiers) > 0 {
 		robotgo.KeyTap(key, modifiers)
 	} else if match == true && len(key) == 1 {
-		robotgo.TypeString(key)
+		robotgo.TypeStr(key)
 	} else {
 		robotgo.KeyTap(key)
 	}
@@ -65,7 +65,7 @@ func typeText(text string) {
 		return
 	}
 
-	robotgo.TypeString(text)
+	robotgo.TypeStr(text)
 }
 
 func keyHold(key string) {
@@ -85,6 +85,12 @@ func convertShortPanelKeyStr(key string) string {
 			return "command"
 		} else {
 			return "cmd" // actually Windows key
+		}
+	case "ctrl":
+		if runtime.GOOS == "darwin" {
+			return "control"
+		} else {
+			return "ctrl"
 		}
 	case "del":
 		return "delete"
