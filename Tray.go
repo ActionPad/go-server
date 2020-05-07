@@ -71,7 +71,7 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 				break
 			case <-mConfig.ClickedCh:
 				if runtime.GOOS == "darwin" {
-					open.RunWith(viper.ConfigFileUsed(), "/Applications/TextEdit.app/Contents/MacOS/TextEdit")
+					open.RunWith(viper.ConfigFileUsed(), "/System/Applications/TextEdit.app/Contents/MacOS/TextEdit")
 				} else if runtime.GOOS == "windows" {
 					open.RunWith(viper.ConfigFileUsed(), "notepad.exe")
 				}

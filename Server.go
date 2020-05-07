@@ -52,6 +52,11 @@ func (server *Server) runOnDeviceIP(port int) error {
 		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
 			if ipnet.IP.To4() != nil {
 				ip = ipnet.IP.String()
+
+				if strings.Contains(ip, "169.254") { // ignore private IP range
+					continue
+				}
+
 				fmt.Printf("Found IP %s\n", ip)
 				server.run(port, ip)
 
