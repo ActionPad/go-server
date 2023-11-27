@@ -7,16 +7,16 @@ On MacOS, this can be done by installing the Xcode Command Line Tools, and then 
 On Windows, you should install MinGW-64, as the executable is 64-bit.
 Your computer must be capable of running a Makefile.
 
-Once you have Golang and GCC installed, you can install the go dependencies.
-
-```
-make deps
-```
-
 ### Mac
 Then run:
 ```
 make
+```
+To compile a standalone executable for macOS:
+```
+make apple-silicon
+make apple-intel
+make combine-universal
 ```
 
 ### Windows
