@@ -4,3 +4,7 @@ ActionPadServer.exe
 vendor
 ActionPadConfig.yml
 rsrc.syso
+ActionPadServerLog.txt
+.nova/
+node_modules/
+ActionPadServer-*

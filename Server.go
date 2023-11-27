@@ -6,68 +6,33 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
+	"html/template"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/go-vgo/robotgo"
 	"github.com/gorilla/mux"
-	"github.com/spf13/viper"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type Server struct {
-	port           int
-	host           string
-	devices        []*Device
-	sessionDevices map[string]*Device
-	sessionInputs  map[string]*InputDispatcher
-	sessionNonces  map[string]bool
-	httpServer     *http.Server
-	mutex          *sync.Mutex
+	port              int
+	devices           []*Device
+	sessionDevices    map[string]*Device
+	sessionInputs     map[string]*InputDispatcher
+	sessionNonces     map[string]bool
+	sessionTimestamps map[string]time.Time
+	httpServer        *http.Server
+	mutex             *sync.Mutex
 }
 
 type Result struct {
 	Data string `json:"result"`
-}
-
-func (server *Server) runOnDeviceIP(port int) error {
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return err
-	}
-	ip := ""
-
-	go func() {
-		robotgo.Sleep(1)
-		fmt.Println("Config set active server: ", server.host, server.port)
-		setActiveServer(server.host, server.port)
-	}()
-
-	for _, address := range addrs {
-		// check the address type and if it is not a loopback the display it
-		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
-				ip = ipnet.IP.String()
-
-				if strings.Contains(ip, "169.254") { // ignore private IP range
-					continue
-				}
-
-				fmt.Printf("Found IP %s\n", ip)
-				server.run(port, ip)
-
-				//break // TODO: Better IP discovery
-			}
-		}
-	}
-
-	robotgo.ShowAlert("ActionPad Server", "Could not start server on specified IP address/port. You can try to fix this by changing the configured IP or port on which ActionPad server runs in the ActionPad menu in the system tray.", "Ok")
-
-	return errors.New("Could not bind to any IP address.")
 }
 
 func (server *Server) authorizeRequest(w http.ResponseWriter, clientAuth string) bool {
@@ -93,7 +58,7 @@ func (server *Server) authorizeRequest(w http.ResponseWriter, clientAuth string)
 	server.sessionNonces[nonce] = true
 	server.mutex.Unlock()
 
-	hashContent := nonce + "," + viper.GetString("serverSecret")
+	hashContent := nonce + "," + GetString("serverSecret")
 
 	hash := sha256.Sum256([]byte(hashContent))
 	hashSlice := hash[:]
@@ -108,12 +73,24 @@ func (server *Server) allowDevice(device *Device) {
 	device.SessionId = generateRandomStr(16)
 	server.mutex.Lock()
 	server.sessionDevices[device.SessionId] = device
+	server.sessionTimestamps[device.SessionId] = time.Now()
+	server.mutex.Unlock()
+}
+
+func (server *Server) updateSessionTimestamp(sessionId string) {
+	server.mutex.Lock()
+	server.sessionTimestamps[sessionId] = time.Now()
 	server.mutex.Unlock()
 }
 
 func (server *Server) authHandler(w http.ResponseWriter, r *http.Request) {
+	configLoad()
+
+	logHTTPRequest(r)
+
 	if server.authorizeRequest(w, r.Header.Get("Authorization")) == false {
 		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+		log.Error("Device not authorized.")
 		return
 	}
 
@@ -121,37 +98,134 @@ func (server *Server) authHandler(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&device)
 	if err != nil {
 		http.Error(w, "Could not decode provided JSON.", http.StatusBadRequest)
+		log.Error("Could not decode provided JSON.")
 		return
 	}
 
 	if configCheckDevice(device.UUID) {
 		server.allowDevice(&device)
+		log.Println("Allowing saved device connection", device)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(device)
 		return
 	}
 
-	allow := robotgo.ShowAlert("ActionPad Server", "Allow "+device.Name+" to control this computer with ActionPad?", "Yes", "No")
 	robotgo.SetActive(robotgo.GetHandPid(robotgo.GetPID()))
-	if allow == 0 {
+	if GetBool("pairingEnabled") {
 		server.allowDevice(&device)
+		log.Println("Allowing new device connection", device)
 		configSaveDevice(device.Name, device.UUID)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(device)
 	} else {
 		http.Error(w, "Device request rejected.", http.StatusUnauthorized)
+		log.Error("Device request rejected.")
 		return
 	}
 }
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "ActionPad Server 2.0")
+	fmt.Fprintf(w, "ActionPad Server "+CURRENT_VERSION)
+}
+
+type PairingResponse struct {
+	Name string `json:"name"`
+	Code string `json:"code"`
+}
+
+func (server *Server) pairingHandler(w http.ResponseWriter, r *http.Request) {
+	configLoad()
+
+	if !GetBool("pairingEnabled") {
+		http.Error(w, "Device not authorized.", http.StatusForbidden)
+		return
+	}
+
+	response := PairingResponse{
+		Name: getHostname(),
+		Code: GetString("serverSecret"),
+	}
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (server *Server) interfaceHandler(w http.ResponseWriter, r *http.Request) {
+	configLoad()
+
+	if !GetBool("pairingEnabled") {
+		http.Error(w, "Device not authorized.", http.StatusForbidden)
+		return
+	}
+
+	interfaceInfos, err := getInterfaceInfo()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	jsonData, err := json.Marshal(interfaceInfos)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonData)
+}
+
+type StatusResponse struct {
+	Connected []string `json:"connected"`
+	Saved     []string `json:"saved"`
+}
+
+func (server *Server) statusHandler(w http.ResponseWriter, r *http.Request) {
+	configLoad()
+
+	devices := GetStringMap("devices")
+
+	var deviceNames []string
+
+	for _, name := range devices {
+		deviceNames = append(deviceNames, name)
+	}
+
+	var connectedDeviceNames []string
+	uniqueConnectedNames := make(map[string]bool)
+
+	for _, device := range server.sessionDevices {
+		if _, exists := uniqueConnectedNames[device.Name]; !exists {
+			connectedDeviceNames = append(connectedDeviceNames, device.Name)
+			uniqueConnectedNames[device.Name] = true
+		}
+	}
+
+	sort.Strings(deviceNames)
+	sort.Strings(connectedDeviceNames)
+
+	response := StatusResponse{
+		Connected: connectedDeviceNames,
+		Saved:     deviceNames,
+	}
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 func infoHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html")
-	pageContent := assembleQRPage(viper.GetString("runningHost"), viper.GetInt("runningPort"), viper.GetString("serverSecret"))
-	fmt.Fprintf(w, pageContent)
+	pageContent := assembleQRPage(GetString("runningHost"), GetInt("runningPort"), GetString("serverSecret"))
+	t, err := template.New("QRPage").Parse(pageContent)
+	if err != nil {
+		http.Error(w, "Couldn't parse the template", 500)
+		return
+	}
+
+	err = t.Execute(w, nil)
+	if err != nil {
+		http.Error(w, "Couldn't render the page", 500)
+	}
 }
 
 func (server *Server) startInputHandler(w http.ResponseWriter, r *http.Request) {
@@ -165,12 +239,17 @@ func (server *Server) startInputHandler(w http.ResponseWriter, r *http.Request) 
 
 	device := server.sessionDevices[sessionId]
 
+	server.updateSessionTimestamp(sessionId)
+
+	logHTTPRequest(r)
+
 	inputDispatcher := &InputDispatcher{}
 
 	var input InputRequest
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
 		http.Error(w, "Could not decode provided JSON.", http.StatusBadRequest)
+		log.Error("Could not decode provided JSON.")
 		return
 	}
 
@@ -185,6 +264,7 @@ func (server *Server) startInputHandler(w http.ResponseWriter, r *http.Request) 
 		json.NewEncoder(w).Encode(input)
 	} else {
 		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+		log.Error("Device not authorized.")
 	}
 }
 
@@ -200,12 +280,17 @@ func (server *Server) sustainInputHandler(w http.ResponseWriter, r *http.Request
 
 	device := server.sessionDevices[sessionId]
 
+	server.updateSessionTimestamp(sessionId)
+
+	logHTTPRequest(r)
+
 	if device != nil && device.UUID == uuid {
 		server.mutex.Lock()
 		inputDispatcher, ok := server.sessionInputs[device.SessionId+"-"+inputId]
 		server.mutex.Unlock()
 		if !ok {
 			http.Error(w, "Invalid input ID.", http.StatusBadRequest)
+			log.Error("Invalid input ID.")
 			return
 		}
 
@@ -215,6 +300,7 @@ func (server *Server) sustainInputHandler(w http.ResponseWriter, r *http.Request
 		fmt.Fprintf(w, "{\"success\":true}")
 	} else {
 		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+		log.Error("Device not authorized.")
 	}
 }
 
@@ -230,6 +316,10 @@ func (server *Server) stopInputHandler(w http.ResponseWriter, r *http.Request) {
 
 	device := server.sessionDevices[sessionId]
 
+	server.updateSessionTimestamp(sessionId)
+
+	logHTTPRequest(r)
+
 	if device != nil && device.UUID == uuid {
 		inputDispatcherId := device.SessionId + "-" + inputId
 		server.mutex.Lock()
@@ -237,6 +327,7 @@ func (server *Server) stopInputHandler(w http.ResponseWriter, r *http.Request) {
 		server.mutex.Unlock()
 		if !ok {
 			http.Error(w, "Invalid input ID.", http.StatusBadRequest)
+			log.Error("Invalid input ID.")
 			return
 		}
 
@@ -250,6 +341,7 @@ func (server *Server) stopInputHandler(w http.ResponseWriter, r *http.Request) {
 		server.mutex.Unlock()
 	} else {
 		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+		log.Error("Device not authorized.")
 	}
 }
 
@@ -264,6 +356,10 @@ func (server *Server) browseFileHandler(w http.ResponseWriter, r *http.Request) 
 
 	device := server.sessionDevices[sessionId]
 
+	server.updateSessionTimestamp(sessionId)
+
+	logHTTPRequest(r)
+
 	if device != nil && device.UUID == uuid {
 		filename, err := browseFile()
 		if err != nil {
@@ -272,11 +368,12 @@ func (server *Server) browseFileHandler(w http.ResponseWriter, r *http.Request) 
 		}
 		result := Result{Data: filename}
 
-		fmt.Println(result)
+		log.Println(result)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)
 	} else {
 		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+		log.Error("Device not authorized.")
 	}
 
 }
@@ -292,6 +389,10 @@ func (server *Server) mousePosHandler(w http.ResponseWriter, r *http.Request) {
 
 	device := server.sessionDevices[sessionId]
 
+	server.updateSessionTimestamp(sessionId)
+
+	logHTTPRequest(r)
+
 	if device != nil && device.UUID == uuid {
 		var pos MousePos
 		pos.X, pos.Y = robotgo.GetMousePos()
@@ -299,6 +400,7 @@ func (server *Server) mousePosHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(pos)
 	} else {
 		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+		log.Error("Device not authorized.")
 	}
 
 }
@@ -314,22 +416,30 @@ func (server *Server) actionHandler(w http.ResponseWriter, r *http.Request) {
 
 	device := server.sessionDevices[sessionId]
 
+	server.updateSessionTimestamp(sessionId)
+
+	logHTTPRequest(r)
+
 	if device != nil && device.UUID == uuid {
 		var action Action
 		err := json.NewDecoder(r.Body).Decode(&action)
 		if err != nil {
 			http.Error(w, "Could not decode provided JSON.", http.StatusBadRequest)
+			log.Error("Could not decode provided JSON.")
 			return
 		}
 		err = action.dispatch()
 		if err != nil {
 			http.Error(w, "Invalid Action", http.StatusBadRequest)
+			log.Error("Invalid Action.")
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(action)
+		log.Println("Finished dispatch action response.")
 	} else {
 		http.Error(w, "Device not authorized.", http.StatusUnauthorized)
+		log.Error("Device not authorized.")
 	}
 
 }
@@ -344,6 +454,10 @@ func (server *Server) sessionStatusHandler(w http.ResponseWriter, r *http.Reques
 	sessionId := params["sessionId"]
 
 	device := server.sessionDevices[sessionId]
+
+	server.updateSessionTimestamp(sessionId)
+
+	logHTTPRequest(r)
 
 	if device != nil && device.UUID == uuid {
 		w.Header().Set("Content-Type", "application/json")
@@ -367,6 +481,8 @@ func (server *Server) stopSessionHandler(w http.ResponseWriter, r *http.Request)
 	if device != nil && device.UUID == uuid {
 		server.mutex.Lock()
 		delete(server.sessionDevices, sessionId)
+		delete(server.sessionTimestamps, sessionId)
+		delete(server.sessionNonces, sessionId)
 		server.mutex.Unlock()
 
 		w.Header().Set("Content-Type", "application/json")
@@ -381,20 +497,27 @@ func (server *Server) notFoundHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "<h1>Error error errrr</h1>")
 }
 
-func (server *Server) run(port int, host string) error {
+func (server *Server) run(port int) error {
 	if port == 0 {
 		port = 2960 // default port
 	}
 	if port <= 0 || port > 65535 {
 		return errors.New("Provided port is out of range. Server offline.")
 	}
-	fmt.Printf("Attempting to run server on: %s:%d\n", host, port)
+	log.Println("Attempting to run server port:", port)
 	router := mux.NewRouter()
 
-	addr := strings.Join([]string{host, ":", strconv.Itoa(port)}, "")
+	// addr := strings.Join([]string{host, ":", strconv.Itoa(port)}, "")
+
+	serverAddr := ":" + strconv.Itoa(port)
+	ipOverride := GetString("ipOverride")
+
+	if len(ipOverride) > 0 {
+		serverAddr = ipOverride + serverAddr
+	}
 
 	server.httpServer = &http.Server{
-		Addr:         addr,
+		Addr:         serverAddr,
 		Handler:      router,
 		WriteTimeout: 60 * time.Second,
 		ReadTimeout:  60 * time.Second,
@@ -405,13 +528,16 @@ func (server *Server) run(port int, host string) error {
 	server.sessionDevices = make(map[string]*Device)
 	server.sessionInputs = make(map[string]*InputDispatcher)
 	server.sessionNonces = make(map[string]bool)
+	server.sessionTimestamps = make(map[string]time.Time)
 
 	server.port = port
-	server.host = host
 
 	// routes
 	router.HandleFunc("/", rootHandler).Methods("GET")
+	router.HandleFunc("/pairing", server.pairingHandler).Methods("GET")
+	router.HandleFunc("/interfaces", server.interfaceHandler).Methods("GET")
 	router.HandleFunc("/info", infoHandler).Methods("GET")
+	router.HandleFunc("/status", server.statusHandler).Methods("GET")
 	router.HandleFunc("/auth", server.authHandler).Methods("POST")
 	router.HandleFunc("/action/{uuid}/{sessionId}", server.actionHandler).Methods("POST")
 	router.HandleFunc("/mouse_pos/{uuid}/{sessionId}", server.mousePosHandler).Methods("GET")
@@ -424,13 +550,28 @@ func (server *Server) run(port int, host string) error {
 
 	router.NotFoundHandler = router.NewRoute().HandlerFunc(server.notFoundHandler).GetHandler()
 
-	watchConfig(func(e fsnotify.Event) {
-		configLoad()
-	})
+	go func(server *Server) {
+		for range time.Tick(time.Second * 20) {
+			for sessionId, timestamp := range server.sessionTimestamps {
+				t := time.Now()
+				elapsed := t.Sub(timestamp)
+				log.Println("sessionId", sessionId, "elapsed", elapsed)
+				if elapsed > time.Second*60 {
+					server.mutex.Lock()
+					log.Println("Disconnecting device with SessionId:", sessionId)
+					delete(server.sessionDevices, sessionId)
+					delete(server.sessionTimestamps, sessionId)
+					delete(server.sessionNonces, sessionId)
+					server.mutex.Unlock()
+				}
+			}
+		}
+	}(server)
 
 	err := server.httpServer.ListenAndServe()
 
 	if err != nil {
+		log.Fatal("Server could not run with err", err)
 		return err
 	}
 

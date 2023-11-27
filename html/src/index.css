@@ -1,0 +1,113 @@
+@media (prefers-color-scheme: dark) {
+	body {
+		color: white;
+		background: black;
+	}
+	
+	.deviceTable {
+		border-color: white;
+	}
+}
+
+#app {
+	padding: 32px;
+}
+
+#deviceSection {
+	padding: 16px;
+}
+
+#pairingSection {
+	padding: 16px;
+	border-radius: 8px;
+	background: rgba(127, 127, 127, 0.1);
+}
+
+img.center {
+	display: block;
+	margin: 0 auto;
+}
+
+#statusBar {
+	height: 64px;
+	color: white !important;
+	-webkit-backdrop-filter: blur(8px);  
+	backdrop-filter: blur(8px); 
+	background: rgba(36, 36, 36, 0.9);
+	padding: 0px 32px;
+}
+
+#statusBarLogo {
+	padding: 8px 0px;
+	height: 48px;
+	float: left;
+}
+
+#statusBarText {
+	float: left;
+	font-size: 24px;
+	margin: 20px 8px;
+}
+
+#qrArea {
+	background: rgba(127, 127, 127, 0.1);
+	border-radius: 8px;
+	padding: 8px;
+}
+
+#qr {
+	border-radius: 8px;
+}
+
+.pure-g {
+  display: flex;
+  justify-content: center;
+}
+
+.deviceTable {
+	width: 100%;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse !important;
+  border-radius: 12px;
+  border: 2px solid;
+  overflow: hidden;
+}
+
+td {
+  padding: 16px;
+}
+
+tr {
+	border-color: white;
+}
+
+@media (prefers-color-scheme: light) {
+  table {
+	border-color: darkgrey;
+  }
+
+  tr:nth-child(even) {
+	background-color: #e2e2e2;
+  }
+
+  tr:nth-child(odd) {
+	background-color: #ebebeb;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  table {
+	border-color: offwhite;
+  }
+
+  tr:nth-child(even) {
+	background-color: #333333;
+  }
+
+  tr:nth-child(odd) {
+	background-color: #444444;
+  }
+}

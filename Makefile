@@ -6,13 +6,13 @@ GOTEST=$(GOCMD) test
 GOGET=$(GOCMD) get
 BINARY_NAME=ActionPadServer
 BINARY_UNIX=$(BINARY_NAME)_unix
-    
+
 all: build
-build: 
+build:
 		$(GOBUILD) -o $(BINARY_NAME) -v
-test: 
+test:
 		$(GOTEST) -v ./...
-clean: 
+clean:
 		$(GOCLEAN)
 		rm -f $(BINARY_NAME)
 		rm -f $(BINARY_UNIX)
@@ -24,11 +24,19 @@ deps:
 		$(GOGET) github.com/go-vgo/robotgo
 		$(GOGET) github.com/skratchdot/open-golang/open
 		$(GOGET) github.com/sqweek/dialog
-		$(GOGET) fyne.io/fyne/
 		$(GOGET) github.com/ActionPad/systray
 		$(GOGET) github.com/skip2/go-qrcode
-		$(GOGET) github.com/spf13/viper
 		$(GOGET) github.com/akavel/rsrc
+		$(GOGET) gopkg.in/yaml.v3
+
+build-apple-silicon:
+	GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 $(GOBUILD) -o $(BINARY_NAME)-Silicon -v
+
+build-apple-intel:
+	GOOS=darwin GOARCH=amd64 $(GOBUILD) -o $(BINARY_NAME)-Intel -v
+
+combine-universal:
+	lipo -create -output $(BINARY_NAME) $(BINARY_NAME)-Intel $(BINARY_NAME)-Silicon
 
 win-exe:
 	$(GOBUILD) -o $(BINARY_NAME).exe -v

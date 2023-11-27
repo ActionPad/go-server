@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/go-vgo/robotgo"
-	"github.com/spf13/viper"
 )
 
 type InputRequest struct {
@@ -56,7 +55,7 @@ func (inputDispatcher *InputDispatcher) startMouseExecute() {
 				mouseHold("left")
 				inputDispatcher.MouseActive["left"] = true
 				inputDispatcher.mutex.Unlock()
-				robotgo.MilliSleep(viper.GetInt("mouseDelay"))
+				robotgo.MilliSleep(GetInt("mouseDelay"))
 			} else {
 				inputDispatcher.mutex.Unlock()
 			}
@@ -67,7 +66,7 @@ func (inputDispatcher *InputDispatcher) startMouseExecute() {
 				mouseHold("right")
 				inputDispatcher.MouseActive["right"] = true
 				inputDispatcher.mutex.Unlock()
-				robotgo.MilliSleep(viper.GetInt("mouseDelay"))
+				robotgo.MilliSleep(GetInt("mouseDelay"))
 			} else {
 				inputDispatcher.mutex.Unlock()
 			}
@@ -109,7 +108,7 @@ func mouseScrollInputExecute(command string) {
 	if magnitude, err := strconv.Atoi(components[1]); err == nil &&
 		len(components) == 2 {
 		robotgo.ScrollMouse(magnitude, direction)
-		robotgo.MilliSleep(viper.GetInt("mouseDelay"))
+		robotgo.MilliSleep(GetInt("mouseDelay"))
 	} else {
 		fmt.Printf("Command <%s> not formatted properly.\n", command)
 	}
@@ -137,7 +136,7 @@ func mousePointerInputExecute(command string) {
 		robotgo.MoveMouse(pos.X+magnitude, pos.Y)
 	}
 
-	robotgo.MilliSleep(viper.GetInt("mouseDelay"))
+	robotgo.MilliSleep(GetInt("mouseDelay"))
 }
 
 func (inputDispatcher *InputDispatcher) inputTimeout() {

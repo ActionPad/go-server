@@ -3,9 +3,9 @@ package main
 import (
 	"crypto/rand"
 	"fmt"
+	"os"
 	"runtime"
-	"os/exec"
-	"github.com/sqweek/dialog"
+	"strings"
 )
 
 func generateRandomStr(length int) string {
@@ -17,23 +17,21 @@ func generateRandomStr(length int) string {
 	return str
 }
 
-func browseFile() (string, error) {
-	if runtime.GOOS == "darwin" {
-		out, err := exec.Command("osascript", "-e", "set apFile to choose file\nPOSIX path of apFile").Output()
-		if err != nil {
-			fmt.Printf("cmd.Run() failed with %s\n", err)
-			return "", err
+func getHostname() string {
+	hostname, err := os.Hostname()
+	if err != nil {
+		fmt.Println(err)
+		if runtime.GOOS == "darwin" {
+			return "Mac"
+		} else if runtime.GOOS == "windows" {
+			return "Windows PC"
 		}
-		fmt.Printf("combined out:\n%s\n", string(out))
-
-		filename := string(out[:len(out)-1])
-		return filename, nil
-	} else {
-		filename, err := dialog.File().Title("ActionPad Server").Load()
-		if err != nil {
-			return "", err
-		}
-
-		return filename, nil
+		return "Computer"
 	}
+
+	if runtime.GOOS == "darwin" {
+		hostname = strings.TrimSuffix(hostname, ".local")
+	}
+
+	return hostname
 }

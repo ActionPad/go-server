@@ -1,13 +1,13 @@
 package main
 
 import (
-	"fmt"
 	"regexp"
 	"runtime"
 	"strings"
 
 	"github.com/go-vgo/robotgo"
-	"github.com/spf13/viper"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func keyIsModifier(key string) bool {
@@ -46,7 +46,7 @@ func keyPressSequence(commands []string) {
 
 func keyPress(key string, modifiers []string) {
 	// mutex.Lock()
-	fmt.Printf("Key Press: <%s> Modifiers: %v (%d)\n", key, modifiers, len(modifiers))
+	log.Printf("Key Press: <%s> Modifiers: %v (%d)\n", key, modifiers, len(modifiers))
 	// check if character is "special", can't be typed in a single keypress
 	match, _ := regexp.MatchString("[~!@#$%^&*()_+{}|:\"<>?]", key)
 	if len(modifiers) > 0 {
@@ -56,7 +56,7 @@ func keyPress(key string, modifiers []string) {
 	} else {
 		robotgo.KeyTap(key)
 	}
-	robotgo.MilliSleep(viper.GetInt("keyDelay"))
+	robotgo.MilliSleep(GetInt("keyDelay"))
 	// mutex.Unlock()
 }
 
@@ -74,7 +74,7 @@ func keyHold(key string) {
 
 func keyRelease(key string) {
 	robotgo.KeyToggle(key, "up")
-	robotgo.MilliSleep(viper.GetInt("keyDelay"))
+	robotgo.MilliSleep(GetInt("keyDelay"))
 }
 
 // Support shortened panel key strings

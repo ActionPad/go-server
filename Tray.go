@@ -6,26 +6,17 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/ActionPad/systray"
-	"github.com/fsnotify/fsnotify"
+	"github.com/getlantern/systray"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/skratchdot/open-golang/open"
-	"github.com/spf13/viper"
 )
 
 func (instanceManager *ActionPadInstanceManager) runInterface() {
-	systray.RunWithAppWindow("ActionPad Server", 600, 800, instanceManager.onReady, instanceManager.onExit)
-}
-
-func (instanceManager *ActionPadInstanceManager) showQRWindow() {
-	// pageContent := url.PathEscape(assembleQRPage(viper.GetString("runningHost"), viper.GetInt("runningPort")))
-	// //systray.ShowAppWindow("data:text/html," + pageContent)
-	fmt.Println("Opening address", "http://"+viper.GetString("runningHost")+":"+viper.GetString("runningPort")+"/info?secret="+viper.GetString("serverSecret"))
-	systray.ShowAppWindow("http://" + viper.GetString("runningHost") + ":" + viper.GetString("runningPort") + "/info?secret=" + viper.GetString("serverSecret"))
+	systray.Run(instanceManager.onReady, instanceManager.onExit)
 }
 
 func (instanceManager *ActionPadInstanceManager) onReady() {
-	time.Sleep(2 * time.Second)
-
 	if runtime.GOOS == "windows" {
 		systray.SetIcon(WinIcon)
 	} else {
@@ -33,13 +24,15 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 	}
 
 	systray.SetTooltip("ActionPad Server")
-	mTitle := systray.AddMenuItem("ActionPad Server "+CURRENT_VERSION+" (by Andrew Arpasi)", "ActionPad Server 2.0")
+	mTitle := systray.AddMenuItem("ActionPad Server "+CURRENT_VERSION+" (by Andrew Arpasi)", "ActionPad Server")
 	mStatus := systray.AddMenuItem("Status: ", "Status")
 	mTitle.Disable()
 	mStatus.Disable()
 	systray.AddSeparator()
-	mConnect := systray.AddMenuItem("Connect Devices", "Connect Devices")
-	mSettings := systray.AddMenuItem("Change IP/Port", "Server Settings")
+	mPairing := systray.AddMenuItem("Connect Devices (Enable Pairing)", "Connect Devices")
+	mShowInfo := systray.AddMenuItem("Show Server Information", "Show Server Information")
+	systray.AddSeparator()
+	// mSettings := systray.AddMenuItem("Change IP/Port", "Server Settings")
 	mConfig := systray.AddMenuItem("Edit Server Config File", "Edit Config File")
 	mUpdate := systray.AddMenuItem("Check For Server Update", "Check For Server Update")
 	systray.AddSeparator()
@@ -49,41 +42,49 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 	configLoad()
 
 	mStatus.SetTitle("Status: " + instanceManager.statusMessage)
+	mPairing.SetTitle(getPairingButtonMessage())
 
-	instanceManager.showQRWindow()
-
-	watchConfig(func(e fsnotify.Event) {
-		configLoad()
-		mStatus.SetTitle("Status: " + instanceManager.statusMessage)
-	})
+	if GetBool("pairingEnabled") {
+		go func() {
+			time.Sleep(time.Second)
+			open.Start(qrPageURL())
+		}()
+	}
 
 	go func() {
 		for {
 			select {
-			case <-mConnect.ClickedCh:
-				instanceManager.showQRWindow()
-				break
+			case <-mPairing.ClickedCh:
+				setPairingEnabled(!GetBool("pairingEnabled"))
+				configLoad()
+				mPairing.SetTitle(getPairingButtonMessage())
+				if GetBool("pairingEnabled") {
+					open.Start(qrPageURL())
+				}
+			case <-mShowInfo.ClickedCh:
+				configLoad()
+				open.Start(qrPageURL())
 			case <-mQuit.ClickedCh:
 				instanceManager.onExit()
 				return
-			case <-mSettings.ClickedCh:
-				instanceManager.spawnConfigurator()
-				break
 			case <-mConfig.ClickedCh:
 				if runtime.GOOS == "darwin" {
-					open.RunWith(viper.ConfigFileUsed(), "/System/Applications/TextEdit.app/Contents/MacOS/TextEdit")
+					open.RunWith(ConfigFileUsed(), "/System/Applications/TextEdit.app/Contents/MacOS/TextEdit")
 				} else if runtime.GOOS == "windows" {
-					open.RunWith(viper.ConfigFileUsed(), "notepad.exe")
+					open.RunWith(ConfigFileUsed(), "notepad.exe")
 				}
-				break
 			case <-mUpdate.ClickedCh:
-				open.Run("https://actionpad.co/update.html?version=" + CURRENT_VERSION)
+				open.Start("https://actionpad.co/update.html?version=" + CURRENT_VERSION)
+			//
+			// BUG:
+			//
+			// Restarting while pairing mode stops pairing mode from ever working again until actual force restart.
+			//
 			case <-mRestart.ClickedCh:
-				fmt.Println("Engine:", instanceManager.engine)
-				clearActiveServer()
+				log.Println("Engine:", instanceManager.engine)
 				if instanceManager.engine != nil {
 					fmt.Print("Killing engine on PID ")
-					fmt.Println(instanceManager.engine.Pid)
+					log.Println(instanceManager.engine.Pid)
 					instanceManager.engine.Kill()
 					instanceManager.spawnEngine()
 					mStatus.SetTitle("Status: " + instanceManager.statusMessage)
@@ -93,25 +94,28 @@ func (instanceManager *ActionPadInstanceManager) onReady() {
 				}
 				go func() {
 					time.Sleep(time.Second)
-					fmt.Println("Should update status:", instanceManager.statusMessage)
+					configLoad()
+					log.Println("Should update status:", instanceManager.statusMessage)
 					mStatus.SetTitle("Status: " + instanceManager.statusMessage)
+					mPairing.SetTitle(getPairingButtonMessage())
 				}()
-				break
 			}
 		}
 	}()
 }
 
+func getPairingButtonMessage() string {
+	if GetBool("pairingEnabled") {
+		return "Done Connecting Devices (Disable Pairing)"
+	}
+	return "Connect Devices (Enable Pairing)"
+}
+
 func (instanceManager *ActionPadInstanceManager) onExit() {
 	// clean up here
-	if instanceManager.configurator != nil {
-		fmt.Print("Killing configurator on PID ")
-		fmt.Println(instanceManager.configurator.Pid)
-		instanceManager.configurator.Kill()
-	}
 	if instanceManager.engine != nil {
 		fmt.Print("Killing engine on PID ")
-		fmt.Println(instanceManager.engine.Pid)
+		log.Println(instanceManager.engine.Pid)
 		instanceManager.engine.Kill()
 	}
 

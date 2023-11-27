@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 
-	"github.com/spf13/viper"
+	"github.com/go-vgo/robotgo"
+	log "github.com/sirupsen/logrus"
 )
 
 func getExecPath() (string, error) {
@@ -18,26 +18,16 @@ func getExecPath() (string, error) {
 }
 
 func launchEngine() {
-	fmt.Println("== ActionPad Server Engine ==")
+	log.Println("== ActionPad Server Engine ==")
 
 	server := Server{}
 
-	configInitialize()
+	port := GetInt("port")
 
-	host := viper.GetString("ip")
-	port := viper.GetInt("port")
-
-	if len(host) > 0 {
-		err := server.run(port, host)
-		if err != nil {
-			log.Fatal(err)
-		}
-		return
-	}
-
-	err := server.runOnDeviceIP(port)
+	err := server.run(port)
 
 	if err != nil {
+		robotgo.ShowAlert("ActionPad Server", "The server has failed to start. You can try manually setting an IP override, or changing the server port in the config file. To try running again, restart the server in the ActionPad tray menu.", "Ok")
 		log.Fatal(err)
 	}
 }
@@ -48,7 +38,7 @@ func (instanceManager *ActionPadInstanceManager) spawnEngine() {
 		log.Fatal(err)
 	}
 
-	fmt.Println("* Spawning Server Engine")
+	log.Println("* Spawning Server Engine")
 	cmd := exec.Command(execPath, "-engine")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -57,7 +47,7 @@ func (instanceManager *ActionPadInstanceManager) spawnEngine() {
 	proc := cmd.Process
 
 	fmt.Print("Engine running on PID ")
-	fmt.Println(proc.Pid)
+	log.Println(proc.Pid)
 
 	instanceManager.statusMessage = "Server running."
 
@@ -65,7 +55,7 @@ func (instanceManager *ActionPadInstanceManager) spawnEngine() {
 
 	go func(instanceManager *ActionPadInstanceManager) {
 		proc.Wait()
-		fmt.Println("Engine has exited.")
+		log.Println("Engine has exited.")
 		if instanceManager.engine.Pid == proc.Pid {
 			instanceManager.engine = nil
 			instanceManager.statusMessage = "Server NOT running."
